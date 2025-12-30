@@ -8,7 +8,7 @@ dotenv.config();
 const AMQP_URL = process.env.AMQP_URL || "amqp://guest:guest@localhost:5672";
 
 const start = async () => {
-  logger.info("Starting Whaticket Engine Standard...");
+  logger.info("Starting Watink Engine Standard...");
 
   const rabbitmq = new RabbitMQ(AMQP_URL);
   await rabbitmq.connect();
