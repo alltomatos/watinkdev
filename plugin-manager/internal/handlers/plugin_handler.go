@@ -3,10 +3,12 @@
 package handlers
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -14,6 +16,15 @@ import (
 	"github.com/alltomatos/watink/plugin-manager/internal/config"
 	"github.com/gin-gonic/gin"
 )
+
+// Helper for generating UUIDs
+func newUUID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
 
 // PluginHandler handles plugin-related HTTP requests
 type PluginHandler struct {
@@ -33,6 +44,7 @@ type SupabasePlugin struct {
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Version     string  `json:"version"`
+	Type        string  `json:"type"`
 	Price       float64 `json:"price"`
 	IconURL     string  `json:"icon_url"`
 	Category    string  `json:"category"`
@@ -96,7 +108,7 @@ func (h *PluginHandler) syncPlugin(p SupabasePlugin) error {
 
 // Helper to get all local plugins for offline fallback
 func (h *PluginHandler) getAllLocalPlugins() ([]SupabasePlugin, error) {
-	rows, err := h.db.Query(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins"`)
+	rows, err := h.db.Query(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", "type", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins"`)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +117,7 @@ func (h *PluginHandler) getAllLocalPlugins() ([]SupabasePlugin, error) {
 	var plugins []SupabasePlugin
 	for rows.Next() {
 		var p SupabasePlugin
-		if err := rows.Scan(&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category); err == nil {
+		if err := rows.Scan(&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Type, &p.Price, &p.IconURL, &p.Category); err == nil {
 			plugins = append(plugins, p)
 		}
 	}
@@ -328,57 +340,58 @@ func (h *PluginHandler) Activate(c *gin.Context) {
 		return
 	}
 
-	// 1. Fetch from Supabase ensure data sync
+	// 1. Resolve Plugin (Local first optimization)
 	client := &http.Client{Timeout: 10 * time.Second}
-	// Decide whether param is UUID or slug
 	isUUID := len(idOrSlug) == 36 && strings.Count(idOrSlug, "-") == 4
-	queryField := "id"
-	if !isUUID {
-		queryField = "slug"
-	}
-	reqURL, _ := http.NewRequest("GET", fmt.Sprintf("%s/rest/v1/marketplace_plugins?%s=eq.%s&select=*", h.cfg.MarketplaceURL, queryField, idOrSlug), nil)
-	reqURL.Header.Add("apikey", h.cfg.MarketplaceKey)
-	reqURL.Header.Add("Authorization", "Bearer "+h.cfg.MarketplaceKey)
-	resp, err := client.Do(reqURL)
 
-	// Handle Offline / Not Found
 	var p SupabasePlugin
-	if err != nil || resp.StatusCode != 200 {
-		// Try local cache if offline
-		var errLoc error
-		if isUUID {
-			errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "id"=$1`, idOrSlug).Scan(
-				&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category)
-		} else {
-			errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "slug"=$1`, idOrSlug).Scan(
-				&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category)
-		}
-		if errLoc != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Plugin not found (online or offline)"})
-			return
-		}
+	var errLoc error
+
+	// Try Local Lookup
+	if isUUID {
+		errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", "type", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "id"=$1`, idOrSlug).Scan(
+			&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Type, &p.Price, &p.IconURL, &p.Category)
 	} else {
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		var results []SupabasePlugin
-		json.Unmarshal(body, &results)
-		if len(results) == 0 {
-			// Remote respondeu 200 porém não encontrou o plugin.
-			// Fallback para cache local.
-			var errLoc error
-			if isUUID {
-				errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "id"=$1`, idOrSlug).Scan(
-					&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category)
-			} else {
-				errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "slug"=$1`, idOrSlug).Scan(
-					&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category)
-			}
+		errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", "type", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "slug"=$1`, idOrSlug).Scan(
+			&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Type, &p.Price, &p.IconURL, &p.Category)
+	}
+
+	bypassRemote := false
+	if errLoc == nil && p.Price == 0 {
+		log.Printf("Activate: Plugin %s found locally and is FREE. Bypassing remote validation.", p.Slug)
+		bypassRemote = true
+	}
+
+	// 2. Fetch Remote if needed
+	if !bypassRemote {
+		queryField := "id"
+		if !isUUID {
+			queryField = "slug"
+		}
+		reqURL, _ := http.NewRequest("GET", fmt.Sprintf("%s/rest/v1/marketplace_plugins?%s=eq.%s&select=*", h.cfg.MarketplaceURL, queryField, idOrSlug), nil)
+		reqURL.Header.Add("apikey", h.cfg.MarketplaceKey)
+		reqURL.Header.Add("Authorization", "Bearer "+h.cfg.MarketplaceKey)
+		resp, err := client.Do(reqURL)
+
+		if err != nil || resp.StatusCode != 200 {
+			// Offline/Error: Use local
 			if errLoc != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Plugin not found (remote empty and no local cache)"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Plugin not found (online or offline)"})
 				return
 			}
 		} else {
-			p = results[0]
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body)
+			var results []SupabasePlugin
+			json.Unmarshal(body, &results)
+			if len(results) == 0 {
+				if errLoc != nil {
+					c.JSON(http.StatusNotFound, gin.H{"error": "Plugin not found (remote empty and no local cache)"})
+					return
+				}
+			} else {
+				p = results[0]
+			}
 		}
 	}
 
@@ -412,10 +425,10 @@ func (h *PluginHandler) Activate(c *gin.Context) {
 	// 3. Upsert Installation with status='active'
 	_, err = h.db.Exec(`
         INSERT INTO "PluginInstallations" ("id", "tenantId", "pluginId", "status", "installedAt", "activatedAt")
-        VALUES (gen_random_uuid(), $1, $2, 'active', NOW(), NOW())
+        VALUES ($3, $1, $2, 'active', NOW(), NOW())
         ON CONFLICT ("tenantId", "pluginId") 
         DO UPDATE SET "status"='active', "activatedAt"=NOW()`,
-		tenantID, p.ID)
+		tenantID, p.ID, newUUID())
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to activate: " + err.Error()})
@@ -427,63 +440,73 @@ func (h *PluginHandler) Activate(c *gin.Context) {
 
 // Deactivate deactivates an installed plugin
 func (h *PluginHandler) Deactivate(c *gin.Context) {
+	log.Printf("Deactivate request for: %s", c.Param("id"))
 	idOrSlug := c.Param("id")
 
 	tenantID, err := h.getTenantID(c)
 	if err != nil {
+		log.Printf("Deactivate error: Tenant not found: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Tenant not found"})
 		return
 	}
 
 	// Resolve plugin by UUID or slug (remote first, fallback local)
+	// OPTIMIZATION: Check local first. If FREE, bypass remote.
 	client := &http.Client{Timeout: 10 * time.Second}
 	isUUID := len(idOrSlug) == 36 && strings.Count(idOrSlug, "-") == 4
-	queryField := "id"
-	if !isUUID {
-		queryField = "slug"
-	}
-
-	reqURL, _ := http.NewRequest("GET", fmt.Sprintf("%s/rest/v1/marketplace_plugins?%s=eq.%s&select=*", h.cfg.MarketplaceURL, queryField, idOrSlug), nil)
-	reqURL.Header.Add("apikey", h.cfg.MarketplaceKey)
-	reqURL.Header.Add("Authorization", "Bearer "+h.cfg.MarketplaceKey)
-	resp, err := client.Do(reqURL)
 
 	var p SupabasePlugin
-	if err != nil || resp.StatusCode != 200 {
-		// Offline or not found remotely: try local cache
-		var errLoc error
-		if isUUID {
-			errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "id"=$1`, idOrSlug).Scan(
-				&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category)
-		} else {
-			errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "slug"=$1`, idOrSlug).Scan(
-				&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category)
-		}
-		if errLoc != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Plugin not found (online or offline)"})
-			return
-		}
+	var errLoc error
+
+	// 1. Try Local Lookup
+	if isUUID {
+		errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", "type", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "id"=$1`, idOrSlug).Scan(
+			&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Type, &p.Price, &p.IconURL, &p.Category)
 	} else {
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		var results []SupabasePlugin
-		json.Unmarshal(body, &results)
-		if len(results) == 0 {
-			// Remote empty, fallback local
-			var errLoc error
-			if isUUID {
-				errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "id"=$1`, idOrSlug).Scan(
-					&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category)
-			} else {
-				errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "slug"=$1`, idOrSlug).Scan(
-					&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Price, &p.IconURL, &p.Category)
-			}
+		errLoc = h.db.QueryRow(`SELECT "id", "slug", "name", COALESCE("description", ''), "version", "type", COALESCE("price", 0)::float8, COALESCE("iconUrl", ''), COALESCE("category", '') FROM "Plugins" WHERE "slug"=$1`, idOrSlug).Scan(
+			&p.ID, &p.Slug, &p.Name, &p.Description, &p.Version, &p.Type, &p.Price, &p.IconURL, &p.Category)
+	}
+
+	bypassRemote := false
+	if errLoc == nil && p.Price == 0 {
+		log.Printf("Deactivate: Plugin %s found locally and is FREE (Price=0). Bypassing remote validation.", p.Slug)
+		bypassRemote = true
+	}
+
+	// 2. Fetch Remote if needed (Not found locally OR Premium)
+	if !bypassRemote {
+		queryField := "id"
+		if !isUUID {
+			queryField = "slug"
+		}
+
+		reqURL, _ := http.NewRequest("GET", fmt.Sprintf("%s/rest/v1/marketplace_plugins?%s=eq.%s&select=*", h.cfg.MarketplaceURL, queryField, idOrSlug), nil)
+		reqURL.Header.Add("apikey", h.cfg.MarketplaceKey)
+		reqURL.Header.Add("Authorization", "Bearer "+h.cfg.MarketplaceKey)
+		resp, err := client.Do(reqURL)
+
+		if err != nil || resp.StatusCode != 200 {
+			log.Printf("Deactivate: Remote fetch failed/offline (err=%v). Using local result if available.", err)
 			if errLoc != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Plugin not found (remote empty and no local cache)"})
+				log.Printf("Deactivate: Plugin not found locally either: %v", errLoc)
+				c.JSON(http.StatusNotFound, gin.H{"error": "Plugin not found (online or offline)"})
 				return
 			}
+			// If errLoc == nil, we have p from local, continue.
 		} else {
-			p = results[0]
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body)
+			var results []SupabasePlugin
+			json.Unmarshal(body, &results)
+			if len(results) == 0 {
+				log.Printf("Deactivate: Remote success but empty. Using local result.")
+				if errLoc != nil {
+					c.JSON(http.StatusNotFound, gin.H{"error": "Plugin not found (remote empty and no local cache)"})
+					return
+				}
+			} else {
+				p = results[0]
+			}
 		}
 	}
 
@@ -498,19 +521,22 @@ func (h *PluginHandler) Deactivate(c *gin.Context) {
 		p.Slug = "plugin-" + p.ID[:8]
 	}
 
+	log.Printf("Deactivate: Updating status to inactive for Tenant %s, Plugin %s", tenantID, p.ID)
 	// Upsert installation as inactive to avoid 500 if not previously installed
 	_, err = h.db.Exec(`
         INSERT INTO "PluginInstallations" ("id", "tenantId", "pluginId", "status", "installedAt", "activatedAt")
-        VALUES (gen_random_uuid(), $1, $2, 'inactive', NOW(), NULL)
+        VALUES ($3, $1, $2, 'inactive', NOW(), NULL)
         ON CONFLICT ("tenantId", "pluginId")
         DO UPDATE SET "status"='inactive'`,
-		tenantID, p.ID)
+		tenantID, p.ID, newUUID())
 
 	if err != nil {
+		log.Printf("Deactivate: DB Exec failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to deactivate: " + err.Error()})
 		return
 	}
 
+	log.Printf("Deactivate: Success")
 	c.JSON(http.StatusOK, gin.H{"message": "Plugin deactivated", "pluginId": p.ID, "status": "inactive"})
 }
 
