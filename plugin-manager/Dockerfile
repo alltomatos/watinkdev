@@ -14,6 +14,7 @@ FROM alpine:latest
 
 WORKDIR /
 COPY --from=builder /plugin-manager /plugin-manager
+COPY --from=builder /app/VERSION /VERSION
 
 EXPOSE 8081
 

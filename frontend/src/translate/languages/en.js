@@ -464,6 +464,40 @@ const messages = {
         ERR_WAPP_GREETING_REQUIRED:
           "Greeting message is required if there is more than one queue.",
       },
+      smtp: {
+        title: "SMTP Server Settings",
+        settingsTitle: "Email Settings (SMTP)",
+        form: {
+          host: "SMTP Host",
+          port: "Port",
+          user: "User / Email",
+          password: "Password",
+          passwordPlaceholder: "Leave blank to keep current",
+          emailFrom: "Sender Email (From)",
+          secure: "Use Secure Connection (SSL/TLS)",
+        },
+        buttons: {
+          save: "Save Settings",
+          saving: "Saving...",
+          test: "Test Connection",
+          testing: "Sending...",
+          sendTest: "Send Test",
+          cancel: "Cancel",
+        },
+        modal: {
+          title: "Test SMTP Connection",
+          content: "Enter a destination email to send a test message.",
+          emailLabel: "Destination Email",
+        },
+        toasts: {
+          loadError: "Error loading SMTP settings",
+          saveSuccess: "SMTP settings saved successfully!",
+          saveError: "Error saving SMTP settings",
+          testSuccess: "Test email sent successfully!",
+          testError: "Error sending test email",
+          emailRequired: "Please enter a destination email.",
+        },
+      },
     },
   },
 };

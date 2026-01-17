@@ -12,6 +12,7 @@ import queueRoutes from "./queueRoutes";
 import quickAnswerRoutes from "./quickAnswerRoutes";
 import apiRoutes from "./apiRoutes";
 import microserviceRoutes from "./microserviceRoutes";
+import tenantSmtpSettingsRoutes from "./tenantSmtpSettingsRoutes";
 import tenantRoutes from "./tenantRoutes";
 import versionRoutes from "./versionRoutes";
 import postgresVersionRoutes from "./postgresVersionRoutes";
@@ -63,6 +64,7 @@ routes.use(clientRoutes);
 routes.use(protocolRoutes);
 routes.use(pluginRoutes);
 routes.use(aiRoutes);
+routes.use(tenantSmtpSettingsRoutes);
 routes.use("/users", userRoutes);
 
 export default routes;

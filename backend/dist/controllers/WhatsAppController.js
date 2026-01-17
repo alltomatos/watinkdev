@@ -38,9 +38,9 @@ const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         syncHistory,
         syncPeriod,
         keepAlive,
+        tenantId,
         type,
-        chatConfig,
-        tenantId
+        chatConfig
     });
     // StartWhatsAppSession(whatsapp); // [REMOVED] Manual connect only
     const io = (0, socket_1.getIO)();

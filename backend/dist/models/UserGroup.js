@@ -30,23 +30,23 @@ __decorate([
     __metadata("design:type", Number)
 ], UserGroup.prototype, "userId", void 0);
 __decorate([
+    (0, sequelize_typescript_1.BelongsTo)(() => User_1.default),
+    __metadata("design:type", User_1.default)
+], UserGroup.prototype, "user", void 0);
+__decorate([
     (0, sequelize_typescript_1.ForeignKey)(() => Group_1.default),
     sequelize_typescript_1.Column,
     __metadata("design:type", Number)
 ], UserGroup.prototype, "groupId", void 0);
 __decorate([
-    (0, sequelize_typescript_1.ForeignKey)(() => Tenant_1.default),
-    sequelize_typescript_1.Column,
-    __metadata("design:type", String)
-], UserGroup.prototype, "tenantId", void 0);
-__decorate([
-    (0, sequelize_typescript_1.BelongsTo)(() => User_1.default),
-    __metadata("design:type", User_1.default)
-], UserGroup.prototype, "user", void 0);
-__decorate([
     (0, sequelize_typescript_1.BelongsTo)(() => Group_1.default),
     __metadata("design:type", Group_1.default)
 ], UserGroup.prototype, "group", void 0);
+__decorate([
+    (0, sequelize_typescript_1.ForeignKey)(() => Tenant_1.default),
+    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.UUID),
+    __metadata("design:type", String)
+], UserGroup.prototype, "tenantId", void 0);
 __decorate([
     (0, sequelize_typescript_1.BelongsTo)(() => Tenant_1.default),
     __metadata("design:type", Tenant_1.default)

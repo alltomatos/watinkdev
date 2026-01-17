@@ -28,7 +28,7 @@ const AuthUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ ema
             { model: Whatsapp_1.default, as: "whatsapp", attributes: ["id", "name"] },
             {
                 model: Group_1.default,
-                as: "groups",
+                as: "group",
                 include: [{ model: Permission_1.default, as: "permissions", attributes: ["id", "name"] }]
             },
             { model: Permission_1.default, as: "permissions", attributes: ["id", "name"] }

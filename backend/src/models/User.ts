@@ -24,6 +24,7 @@ import Tenant from "./Tenant";
 import Group from "./Group";
 import Permission from "./Permission";
 import UserPermission from "./UserPermission";
+import UserGroup from "./UserGroup";
 
 @Table
 class User extends Model<User> {
@@ -78,12 +79,8 @@ class User extends Model<User> {
   @BelongsTo(() => Tenant)
   tenant: Tenant;
 
-  @ForeignKey(() => Group)
-  @Column
-  groupId: number;
-
-  @BelongsTo(() => Group)
-  group: Group;
+  @BelongsToMany(() => Group, () => UserGroup)
+  groups: Group[];
 
   @BelongsToMany(() => Permission, () => UserPermission)
   permissions: Permission[];

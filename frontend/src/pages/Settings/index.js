@@ -36,6 +36,7 @@ import toastError from "../../errors/toastError";
 import { useThemeContext } from "../../context/DarkMode";
 import { getBackendUrl } from "../../config";
 import { AuthContext } from "../../context/Auth/AuthContext";
+import SmtpSettingsForm from "../Marketplace/SmtpSettingsForm";
 
 const AI_MODELS = {
 	openai: [
@@ -147,40 +148,16 @@ const Settings = () => {
 
 	useEffect(() => {
 		const checkMarketplace = async () => {
-			const pluginUrl = process.env.REACT_APP_PLUGIN_MANAGER_URL || (import.meta.env && import.meta.env.VITE_PLUGIN_MANAGER_URL);
-
-			// If no URL configured, hide it
-			if (!pluginUrl) {
-				setMarketplaceVisible(false);
-				return;
-			}
-
-			// If URL is just a path (like /plugins/), construct full URL based on current location
-			const targetUrl = pluginUrl.startsWith('http')
-				? pluginUrl
-				: `${window.location.origin}${pluginUrl}`;
-
 			try {
-				// Simple timeout for the check
-				const controller = new AbortController();
-				const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-				const response = await fetch(targetUrl, {
-					method: 'HEAD',
-					signal: controller.signal
-				});
-
-				clearTimeout(timeoutId);
-
-				// Assuming if we get a response, the service is reachable or routed
-				// Checking specifically for success or 404 (service might be there but index missing)
-				// But specifically avoiding 5xx which usually means Bad Gateway (Down)
-				if (response.status < 500) {
+				const { data } = await api.get("/plugins/version");
+				// Se retornou dados válidos com version, o marketplace está online
+				if (data && data.version) {
 					setMarketplaceVisible(true);
 				} else {
 					setMarketplaceVisible(false);
 				}
 			} catch (err) {
+				// 502, Network Error, ou qualquer falha = offline
 				setMarketplaceVisible(false);
 			}
 		};
@@ -964,6 +941,17 @@ const Settings = () => {
 					</ListItem>
 					<ListItem
 						button
+						selected={activeSection === "smtp"}
+						onClick={() => setActiveSection("smtp")}
+						className={classes.menuItem}
+					>
+						<ListItemIcon>
+							<SettingsIcon />
+						</ListItemIcon>
+						<ListItemText primary="SMTP" />
+					</ListItem>
+					<ListItem
+						button
 						selected={activeSection === "customize"}
 						onClick={() => setActiveSection("customize")}
 						className={classes.menuItem}
@@ -1197,6 +1185,14 @@ const Settings = () => {
 								</div>
 							</Box>
 						</Paper>
+					</>
+				)}
+				{activeSection === "smtp" && (
+					<>
+						<Typography variant="h5" className={classes.sectionTitle}>
+							{i18n.t("smtp.settingsTitle")}
+						</Typography>
+						<SmtpSettingsForm active={true} />
 					</>
 				)}
 			</Box>

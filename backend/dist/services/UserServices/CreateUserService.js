@@ -50,7 +50,7 @@ const AppError_1 = __importDefault(require("../../errors/AppError"));
 const SerializeUser_1 = require("../../helpers/SerializeUser");
 const User_1 = __importDefault(require("../../models/User"));
 const Permission_1 = __importDefault(require("../../models/Permission"));
-const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ email, password, name, queueIds = [], profile = "admin", whatsappId, tenantId }) {
+const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ email, password, name, queueIds = [], profile = "admin", whatsappId }) {
     const schema = Yup.object().shape({
         name: Yup.string().required().min(2),
         email: Yup.string()
@@ -77,8 +77,7 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
         password,
         name,
         profile,
-        whatsappId: whatsappId ? whatsappId : null,
-        tenantId
+        whatsappId: whatsappId ? whatsappId : null
     }, { include: ["queues", "whatsapp"] });
     if (profile === "superadmin") {
         const allPermissions = yield Permission_1.default.findAll();

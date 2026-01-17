@@ -16,7 +16,7 @@ module.exports = {
             return queryInterface.bulkInsert("Settings", [
                 {
                     key: "userCreation",
-                    value: "disabled",
+                    value: "enabled",
                     createdAt: new Date(),
                     updatedAt: new Date()
                 }

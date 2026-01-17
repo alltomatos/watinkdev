@@ -21,9 +21,15 @@ const app = express();
 app.use(
   cors({
     credentials: true,
-    origin: (origin, callback) => {
-      callback(null, true);
-    }
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Cache-Control",
+      "Pragma",
+      "x-tenant-id",
+      "x-user-profile"
+    ],
   })
 );
 app.use(cookieParser());

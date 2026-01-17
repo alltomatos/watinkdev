@@ -19,23 +19,34 @@ const useStyles = makeStyles((theme) => ({
     borderBottom: "1px solid #f0f0f0",
     padding: "8px",
   },
-  error: {
+  online: {
+    color: theme.palette.success?.main || "#4caf50",
+    fontWeight: 500,
+  },
+  offline: {
     color: theme.palette.error.main,
+    fontWeight: 500,
   },
 }));
 
 import { getBackendUrl } from "../../helpers/urlUtils";
 
 const endpoints = [
-  { key: "frontend", url: "/version.json" },
-  { key: "backend", url: getBackendUrl("/api/version") },
-  { key: "plugin-manager", url: "/plugins/version" },
-  { key: "whaileys-engine", url: getBackendUrl("/api/engine/version") },
-  { key: "flow-worker", url: getBackendUrl("/api/flow/version") },
-  { key: "pgvectorgis", url: getBackendUrl("/api/postgres/version") },
-  { key: "rabbitmq", url: getBackendUrl("/api/rabbitmq/version") },
-  { key: "redis", url: getBackendUrl("/api/redis/version") },
+  { key: "frontend", url: "/version.json", displayName: "frontend" },
+  { key: "backend", url: getBackendUrl("/api/version"), displayName: "backend" },
+  { key: "plugin-manager", url: getBackendUrl("/plugins/version"), displayName: "marketplace" },
+  { key: "whaileys-engine", url: getBackendUrl("/api/engine/version"), displayName: "whaileys-engine" },
+  { key: "postgres", url: getBackendUrl("/api/postgres/version"), displayName: "pgvectorgis" },
+  { key: "rabbitmq", url: getBackendUrl("/api/rabbitmq/version"), displayName: "rabbitmq" },
+  { key: "redis", url: getBackendUrl("/api/redis/version"), displayName: "redis" },
 ];
+
+// Extrai apenas a versão do PostgreSQL (ex: "PostgreSQL 16.11 (Debian...)" => "16.11")
+const extractPostgresVersion = (version) => {
+  if (!version || version === "-") return "-";
+  const match = version.match(/PostgreSQL\s+([\d.]+)/i);
+  return match ? match[1] : version;
+};
 
 export default function VersionDashboard() {
   const classes = useStyles();
@@ -45,34 +56,40 @@ export default function VersionDashboard() {
   const fetchVersions = useCallback(async () => {
     setLoading(true);
     const results = {};
-    const fetchOne = async (key, url) => {
+    const fetchOne = async (endpoint) => {
+      const { key, url, displayName } = endpoint;
       const start = performance.now();
       try {
         const urlWithCacheBuster = `${url}?t=${Date.now()}`;
-        const res = await fetch(urlWithCacheBuster, { headers: { "Cache-Control": "no-store", "Pragma": "no-cache" } });
+        const res = await fetch(urlWithCacheBuster);
         const elapsed = performance.now() - start;
-        if (!res.ok) throw new Error(`HTTP ${res.status} `);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
+        let version = json.version || "-";
+
+        // Para postgres, extrair apenas a versão numérica
+        if (key === "postgres") {
+          version = extractPostgresVersion(version);
+        }
+
         results[key] = {
-          service: json.service || key,
-          version: json.version || "-",
-          lastUpdated: json.lastUpdated || "-",
+          service: displayName,
+          version,
           latencyMs: Math.round(elapsed),
-          error: null,
+          isOnline: true,
         };
       } catch (e) {
         const elapsed = performance.now() - start;
         results[key] = {
-          service: key,
+          service: displayName,
           version: "-",
-          lastUpdated: "-",
           latencyMs: Math.round(elapsed),
-          error: e.message,
+          isOnline: false,
         };
       }
     };
 
-    await Promise.all(endpoints.map((e) => fetchOne(e.key, e.url)));
+    await Promise.all(endpoints.map((e) => fetchOne(e)));
     setData(results);
     setLoading(false);
   }, []);
@@ -83,7 +100,7 @@ export default function VersionDashboard() {
     return () => clearInterval(id);
   }, [fetchVersions]);
 
-  const rows = endpoints.map((e) => data[e.key] || { service: e.key, version: "-", lastUpdated: "-", latencyMs: 0, error: null });
+  const rows = endpoints.map((e) => data[e.key] || { service: e.displayName, version: "-", latencyMs: 0, isOnline: false });
 
   return (
     <Container maxWidth="md" className={classes.root}>
@@ -95,7 +112,6 @@ export default function VersionDashboard() {
           <tr>
             <th className={classes.th}>Serviço</th>
             <th className={classes.th}>Versão</th>
-            <th className={classes.th}>Última Atualização</th>
             <th className={classes.th}>Latência (ms)</th>
             <th className={classes.th}>Status</th>
           </tr>
@@ -105,10 +121,13 @@ export default function VersionDashboard() {
             <tr key={r.service}>
               <td className={classes.td}>{r.service}</td>
               <td className={classes.td}>{r.version}</td>
-              <td className={classes.td}>{r.lastUpdated}</td>
               <td className={classes.td}>{r.latencyMs}</td>
               <td className={classes.td}>
-                {r.error ? <span className={classes.error}>Erro: {r.error}</span> : "OK"}
+                {r.isOnline ? (
+                  <span className={classes.online}>Online</span>
+                ) : (
+                  <span className={classes.offline}>Offline</span>
+                )}
               </td>
             </tr>
           ))}

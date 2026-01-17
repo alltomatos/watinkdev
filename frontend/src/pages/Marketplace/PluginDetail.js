@@ -29,6 +29,7 @@ import pluginApi from "../../services/pluginApi";
 import { toast } from "react-toastify";
 import { getBackendUrl } from "../../helpers/urlUtils";
 
+
 const useStyles = makeStyles((theme) => ({
     root: {
         padding: theme.spacing(3),
@@ -96,22 +97,30 @@ const PluginDetail = () => {
     const loadPlugin = async () => {
         try {
             setLoading(true);
-            const { data: catalogRes } = await pluginApi.get("/api/v1/plugins/catalog");
+            const [{ data: catalogRes }, { data: installedRes }] = await Promise.all([
+                pluginApi.get("/api/v1/plugins/catalog"),
+                pluginApi.get("/api/v1/plugins/installed")
+            ]);
+
             const all = Array.isArray(catalogRes?.plugins) ? catalogRes.plugins : [];
-            const p = all.find(x => x.slug === slug && ["clientes", "helpdesk"].includes(x.slug));
-            if (!p) {
-                setPlugin(null);
-            } else {
+            const activeSlugs = Array.isArray(installedRes?.active) ? installedRes.active : [];
+
+            const p = all.find(x => x.slug === slug && ["clientes", "helpdesk", "smtp"].includes(x.slug));
+            const isActive = activeSlugs.includes(slug);
+
+            if (p) {
                 setPlugin({
                     ...p,
-                    installed: p.status !== 'not_installed' && p.status !== null && p.status !== undefined,
-                    active: p.status === 'active',
+                    installed: isActive,
+                    active: isActive,
                     // Force use of local icons based on slug
                     iconUrl: `/public/plugins/${p.slug}.png`,
                     longDescription:
                         p.slug === "clientes"
                             ? `O Plugin de Clientes adiciona ao Watink uma gestão completa de clientes, permitindo:\n\n• Cadastro detalhado de clientes (pessoa física e jurídica)\n• Múltiplos contatos vinculados ao mesmo cliente\n• Múltiplos endereços por cliente\n• Integração automática com API ViaCEP para autocompletar endereços\n• Vinculação de contatos do WhatsApp a clientes cadastrados\n• Histórico de interações por cliente`
-                            : `O Plugin de Helpdesk transforma seu atendimento em um sistema de suporte profissional:\n\n• Criação de protocolos de atendimento\n• Vinculação de protocolos a tickets\n• Gestão de status, prioridade e SLA\n• Histórico completo de interações no protocolo\n• Relatórios de atendimento`,
+                            : p.slug === "smtp"
+                                ? `O Plugin de SMTP permite configurar seu próprio servidor de e-mail para envio de notificações e mensagens do sistema.\n\n• Configuração personalizada de Host, Porta e Autenticação\n• Suporte a SSL/TLS\n• Definição de remetente padrão`
+                                : `O Plugin de Helpdesk transforma seu atendimento em um sistema de suporte profissional:\n\n• Criação de protocolos de atendimento\n• Vinculação de protocolos a tickets\n• Gestão de status, prioridade e SLA\n• Histórico completo de interações no protocolo\n• Relatórios de atendimento`,
                 });
             }
         } catch (err) {
@@ -281,6 +290,7 @@ const PluginDetail = () => {
                                 </Button>
                             )}
                         </Box>
+
                     </Paper>
 
                     <Dialog open={licenseDialogOpen} onClose={() => setLicenseDialogOpen(false)}>

@@ -22,7 +22,8 @@ import {
     Grid,
     Checkbox,
     FormControlLabel,
-    FormGroup
+    FormGroup,
+    ListItemText
 } from "@material-ui/core";
 
 import { Visibility, VisibilityOff } from "@material-ui/icons";
@@ -115,8 +116,9 @@ const UserEdit = () => {
         const fetchUser = async () => {
             try {
                 const { data } = await api.get(`/users/${userId}`);
+                const userGroupIds = data.groups?.map((group) => group.id) || [];
                 setUser((prevState) => {
-                    return { ...prevState, ...data };
+                    return { ...prevState, ...data, groupIds: userGroupIds };
                 });
                 const userQueueIds = data.queues?.map((queue) => queue.id);
                 setSelectedQueueIds(userQueueIds);

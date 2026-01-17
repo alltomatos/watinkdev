@@ -16,6 +16,7 @@ import User from "./User";
 import Permission from "./Permission";
 import GroupPermission from "./GroupPermission";
 import Tenant from "./Tenant";
+import UserGroup from "./UserGroup";
 
 @Table
 class Group extends Model<Group> {
@@ -34,7 +35,8 @@ class Group extends Model<Group> {
     @BelongsTo(() => Tenant)
     tenant: Tenant;
 
-    @HasMany(() => User, { sourceKey: "id", foreignKey: "groupId", as: "users" })
+    // Nova relação Many-to-Many: Um grupo pode ter múltiplos usuários
+    @BelongsToMany(() => User, () => UserGroup)
     users: User[];
 
     @BelongsToMany(() => Permission, () => GroupPermission)

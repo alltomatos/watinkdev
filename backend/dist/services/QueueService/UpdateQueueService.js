@@ -50,7 +50,6 @@ const Yup = __importStar(require("yup"));
 const AppError_1 = __importDefault(require("../../errors/AppError"));
 const Queue_1 = __importDefault(require("../../models/Queue"));
 const ShowQueueService_1 = __importDefault(require("./ShowQueueService"));
-const RedisService_1 = require("../../services/RedisService");
 const UpdateQueueService = (queueId, queueData) => __awaiter(void 0, void 0, void 0, function* () {
     const { color, name } = queueData;
     const queueSchema = Yup.object().shape({
@@ -92,10 +91,6 @@ const UpdateQueueService = (queueId, queueData) => __awaiter(void 0, void 0, voi
     }
     const queue = yield (0, ShowQueueService_1.default)(queueId);
     yield queue.update(queueData);
-    if (queueData.distributionMode) {
-        const redis = RedisService_1.RedisService.getInstance().getClient();
-        yield redis.hset(`queue:config:${queue.id}`, "distributionMode", queueData.distributionMode);
-    }
     return queue;
 });
 exports.default = UpdateQueueService;

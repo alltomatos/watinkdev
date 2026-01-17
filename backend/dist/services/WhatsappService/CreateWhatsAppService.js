@@ -49,7 +49,7 @@ const Yup = __importStar(require("yup"));
 const AppError_1 = __importDefault(require("../../errors/AppError"));
 const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const AssociateWhatsappQueue_1 = __importDefault(require("./AssociateWhatsappQueue"));
-const CreateWhatsAppService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ name, status = "DISCONNECTED", queueIds = [], greetingMessage, farewellMessage, isDefault = false, syncHistory = false, syncPeriod, keepAlive, type, chatConfig, tenantId }) {
+const CreateWhatsAppService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ name, status = "DISCONNECTED", queueIds = [], greetingMessage, farewellMessage, isDefault = false, syncHistory = false, syncPeriod, keepAlive, tenantId, type = "whatsapp", chatConfig = {} }) {
     const schema = Yup.object().shape({
         name: Yup.string()
             .required()
@@ -93,9 +93,9 @@ const CreateWhatsAppService = (_a) => __awaiter(void 0, [_a], void 0, function* 
         syncHistory,
         syncPeriod,
         keepAlive,
+        tenantId,
         type,
-        chatConfig,
-        tenantId
+        chatConfig
     }, { include: ["queues"] });
     yield (0, AssociateWhatsappQueue_1.default)(whatsapp, queueIds);
     return { whatsapp, oldDefaultWhatsapp };

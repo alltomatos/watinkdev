@@ -22,7 +22,7 @@ const ShowUserService = async (id: string | number): Promise<User> => {
       { model: Whatsapp, as: "whatsapp", attributes: ["id", "name"] },
       {
         model: Group,
-        as: "group",
+        as: "groups",
         include: [{ model: Permission, as: "permissions", attributes: ["id", "name"] }]
       },
       { model: Permission, as: "permissions", attributes: ["id", "name"] }

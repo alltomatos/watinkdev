@@ -97,7 +97,10 @@ const MainListItems = (props) => {
         const { data } = await api.get("/plugins/api/v1/plugins/installed");
         setActivePlugins(data.active || []);
       } catch (err) {
-        console.error("Failed to fetch plugins", err);
+        // Silent error for offline/502 to avoid console spam
+        if (err?.response?.status !== 502 && err?.code !== "ERR_NETWORK") {
+          console.warn("Failed to fetch plugins", err);
+        }
       }
     };
     fetchPlugins();

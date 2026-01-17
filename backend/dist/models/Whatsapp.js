@@ -72,6 +72,14 @@ __decorate([
     __metadata("design:type", String)
 ], Whatsapp.prototype, "farewellMessage", void 0);
 __decorate([
+    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.TEXT),
+    __metadata("design:type", String)
+], Whatsapp.prototype, "chatConfig", void 0);
+__decorate([
+    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.STRING),
+    __metadata("design:type", String)
+], Whatsapp.prototype, "type", void 0);
+__decorate([
     (0, sequelize_typescript_1.Default)(false),
     sequelize_typescript_1.AllowNull,
     sequelize_typescript_1.Column,
@@ -91,15 +99,6 @@ __decorate([
     (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.BOOLEAN),
     __metadata("design:type", Boolean)
 ], Whatsapp.prototype, "keepAlive", void 0);
-__decorate([
-    (0, sequelize_typescript_1.Default)("whatsapp"),
-    sequelize_typescript_1.Column,
-    __metadata("design:type", String)
-], Whatsapp.prototype, "type", void 0);
-__decorate([
-    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.JSONB),
-    __metadata("design:type", Object)
-], Whatsapp.prototype, "chatConfig", void 0);
 __decorate([
     sequelize_typescript_1.CreatedAt,
     __metadata("design:type", Date)

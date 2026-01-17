@@ -23,7 +23,6 @@ const UpdateTicketService_1 = __importDefault(require("../services/TicketService
 const CloseAllTicketsService_1 = __importDefault(require("../services/TicketServices/CloseAllTicketsService"));
 const SendWhatsAppMessage_1 = __importDefault(require("../services/WbotServices/SendWhatsAppMessage"));
 const ShowWhatsAppService_1 = __importDefault(require("../services/WhatsappService/ShowWhatsAppService"));
-const ShowUserService_1 = __importDefault(require("../services/UserServices/ShowUserService"));
 const Mustache_1 = __importDefault(require("../helpers/Mustache"));
 const Ticket_1 = __importDefault(require("../models/Ticket"));
 const AppError_1 = __importDefault(require("../errors/AppError"));
@@ -36,21 +35,6 @@ const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     let queueIds = [];
     if (queueIdsStringified) {
         queueIds = JSON.parse(queueIdsStringified);
-    }
-    // Enforce Queue Isolation for non-admin users
-    const user = yield (0, ShowUserService_1.default)(userId);
-    if (user.profile !== "admin" && user.profile !== "auditor") {
-        const userQueueIds = user.queues.map((queue) => queue.id);
-        if (queueIds.length > 0) {
-            // If user requested specific queues, filter to only include ones they belong to
-            queueIds = queueIds.filter((id) => userQueueIds.includes(id));
-            // If the intersection is empty (user asked for queues they don't have), 
-            // we might want to return empty or just let it pass (which results in no tickets)
-        }
-        else {
-            // If no queues requested, restricts to ALL their queues
-            queueIds = userQueueIds;
-        }
     }
     const { tickets, count, hasMore } = yield (0, ListTicketsService_1.default)({
         searchParam,

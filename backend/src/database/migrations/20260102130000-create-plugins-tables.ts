@@ -107,6 +107,11 @@ module.exports = {
       activatedAt: {
         type: DataTypes.DATE,
         allowNull: true
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
       }
     });
 
@@ -188,15 +193,14 @@ module.exports = {
         updatedAt: new Date()
       },
       {
-        id: "550e8400-e29b-41d4-a716-446655440003",
-        slug: "whatsmeow",
-        name: "Motor WhatsMeow",
-        description: "Engine de alta performance em Go para conexões WhatsApp.",
+        id: "550e8400-e29b-41d4-a716-446655440004",
+        slug: "smtp",
+        name: "Plugin de SMTP",
+        description: "Envio de e-mails via SMTP com suporte a templates e filas.",
         version: "1.0.0",
-        type: "premium",
-        price: 199.90,
-        iconUrl: "https://plugins.watink.com/whatsmeow/icon.png",
-        category: "engine",
+        type: "free",
+        iconUrl: "https://plugins.watink.com/smtp/icon.png",
+        category: "integracao",
         createdAt: new Date(),
         updatedAt: new Date()
       }

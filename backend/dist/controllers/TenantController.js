@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.remove = exports.updateBusiness = exports.update = exports.show = exports.store = exports.index = void 0;
+exports.remove = exports.update = exports.show = exports.store = exports.index = void 0;
 const CreateTenantService_1 = __importDefault(require("../services/TenantServices/CreateTenantService"));
 const ListTenantsService_1 = __importDefault(require("../services/TenantServices/ListTenantsService"));
 const ShowTenantService_1 = __importDefault(require("../services/TenantServices/ShowTenantService"));
@@ -46,22 +46,6 @@ const update = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     return res.status(200).json(tenant);
 });
 exports.update = update;
-const updateBusiness = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { tenantId } = req.params;
-    const { name, document, businessHours, message } = req.body;
-    const tenantData = {
-        name,
-        document,
-        businessHours,
-        message
-    };
-    if (req.file) {
-        tenantData.logo = req.file.filename;
-    }
-    const tenant = yield (0, UpdateTenantService_1.default)({ tenantData, tenantId });
-    return res.status(200).json(tenant);
-});
-exports.updateBusiness = updateBusiness;
 const remove = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { tenantId } = req.params;
     yield (0, DeleteTenantService_1.default)(tenantId);

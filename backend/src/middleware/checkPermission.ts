@@ -12,7 +12,7 @@ const checkPermission = (permission: string) => {
             include: [
                 {
                     model: Group,
-                    as: "group",
+                    as: "groups",
                     include: [{ model: Permission, as: "permissions" }]
                 },
                 {
@@ -31,7 +31,7 @@ const checkPermission = (permission: string) => {
             return next();
         }
 
-        const groupPermissions = user.group?.permissions?.map(p => p.name) || [];
+        const groupPermissions = user.groups?.flatMap(g => g.permissions?.map(p => p.name)) || [];
         const individualPermissions = user.permissions?.map(p => p.name) || [];
 
         // Merge permissions

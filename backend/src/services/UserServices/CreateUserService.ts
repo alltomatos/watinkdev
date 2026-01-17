@@ -12,6 +12,7 @@ interface Request {
   queueIds?: number[];
   profile?: string;
   whatsappId?: number;
+  groupIds?: number[];
 }
 
 interface Response {
@@ -27,7 +28,8 @@ const CreateUserService = async ({
   name,
   queueIds = [],
   profile = "admin",
-  whatsappId
+  whatsappId,
+  groupIds = []
 }: Request): Promise<Response> => {
   const schema = Yup.object().shape({
     name: Yup.string().required().min(2),
@@ -70,6 +72,7 @@ const CreateUserService = async ({
     await user.$set("permissions", allPermissions);
   } else {
     await user.$set("queues", queueIds);
+    await user.$set("groups", groupIds);
   }
 
   await user.reload();

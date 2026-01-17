@@ -235,6 +235,37 @@ const UserModal = ({ open, onClose, userId }) => {
 										/>
 									</FormControl>
 								</div>
+								<div className={classes.multFieldLine}>
+									<FormControl
+										variant="outlined"
+										className={classes.formControl}
+										margin="dense"
+										fullWidth
+									>
+										<InputLabel id="group-selection-input-label">
+											{i18n.t("userModal.form.group")}
+										</InputLabel>
+										<Field
+											as={Select}
+											label={i18n.t("userModal.form.group")}
+											name="groupIds"
+											labelId="group-selection-label"
+											id="group-selection"
+											multiple
+											renderValue={(selected) => {
+												const selectedGroups = groups.filter(g => selected.includes(g.id));
+												return selectedGroups.map(g => g.name).join(', ');
+											}}
+										>
+											{groups.map(group => (
+												<MenuItem key={group.id} value={group.id}>
+													<Checkbox checked={user.groupIds?.includes(group.id) || false} />
+													<ListItemText primary={group.name} />
+												</MenuItem>
+											))}
+										</Field>
+									</FormControl>
+								</div>
 								<Can
 									role={loggedInUser.profile}
 									perform="user-modal:editQueues"

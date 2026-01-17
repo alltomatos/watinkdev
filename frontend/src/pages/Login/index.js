@@ -65,7 +65,10 @@ const Login = () => {
 
   const [user, setUser] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(() => {
+    // Se há email salvo, mantém rememberMe como true
+    return localStorage.getItem("rememberedEmail") !== null;
+  });
   const [settings, setSettings] = useState({
     loginLayout: "split_left", // split_left, split_right, centered
     loginBackground: "", // url
@@ -73,6 +76,15 @@ const Login = () => {
   });
 
   const { handleLogin } = useContext(AuthContext);
+
+  // Carregar email salvo do localStorage
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("rememberedEmail");
+    if (savedEmail) {
+      setUser(prev => ({ ...prev, email: savedEmail }));
+      setRememberMe(true);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -102,6 +114,14 @@ const Login = () => {
 
   const handlSubmit = (e) => {
     e.preventDefault();
+
+    // Salvar ou remover email do localStorage baseado no rememberMe
+    if (rememberMe) {
+      localStorage.setItem("rememberedEmail", user.email);
+    } else {
+      localStorage.removeItem("rememberedEmail");
+    }
+
     handleLogin(user, rememberMe);
   };
 

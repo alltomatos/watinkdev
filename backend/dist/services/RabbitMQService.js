@@ -90,6 +90,16 @@ class RabbitMQService {
             this.channel.publish("wbot.commands", routingKey, Buffer.from(JSON.stringify(message)));
         });
     }
+    publishEvent(routingKey, message) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.channel) {
+                logger_1.logger.warn("Cannot publish event, channel is closed");
+                return;
+            }
+            logger_1.logger.info(`[RabbitMQ] Publishing event to ${routingKey}`);
+            this.channel.publish("wbot.events", routingKey, Buffer.from(JSON.stringify(message)));
+        });
+    }
     consumeEvents(queueName, routingKeys, handler) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!this.channel)

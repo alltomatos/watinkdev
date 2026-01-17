@@ -18,7 +18,7 @@ const useAuth = () => {
 		config => {
 			const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 			if (token) {
-				config.headers["Authorization"] = `Bearer ${JSON.parse(token)}`;
+				config.headers["Authorization"] = `Bearer ${token}`; // JSON.parse removed
 				setIsAuth(true);
 			}
 			return config;
@@ -42,9 +42,9 @@ const useAuth = () => {
 					if (data) {
 						// Detect where the token was and update it there
 						if (localStorage.getItem("token")) {
-							localStorage.setItem("token", JSON.stringify(data.token));
+							localStorage.setItem("token", data.token); // JSON.stringify removed
 						} else {
-							sessionStorage.setItem("token", JSON.stringify(data.token));
+							sessionStorage.setItem("token", data.token); // JSON.stringify removed
 						}
 
 						api.defaults.headers.Authorization = `Bearer ${data.token}`;
@@ -109,7 +109,7 @@ const useAuth = () => {
 		try {
 			const { data } = await api.post("/auth/login", userData);
 
-			const tokenStr = JSON.stringify(data.token);
+			const tokenStr = data.token; // JSON.stringify removed
 			if (rememberMe) {
 				localStorage.setItem("token", tokenStr);
 				sessionStorage.removeItem("token"); // Cleanup

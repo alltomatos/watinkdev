@@ -17,7 +17,6 @@ const socket_1 = require("../libs/socket");
 const CheckSettings_1 = __importDefault(require("../helpers/CheckSettings"));
 const AppError_1 = __importDefault(require("../errors/AppError"));
 const CreateUserService_1 = __importDefault(require("../services/UserServices/CreateUserService"));
-const CreateTenantService_1 = __importDefault(require("../services/TenantServices/CreateTenantService"));
 const ListUsersService_1 = __importDefault(require("../services/UserServices/ListUsersService"));
 const UpdateUserService_1 = __importDefault(require("../services/UserServices/UpdateUserService"));
 const ShowUserService_1 = __importDefault(require("../services/UserServices/ShowUserService"));
@@ -34,7 +33,7 @@ const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.index = index;
 const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { email, password, name, phone, companyName } = req.body;
+    const { email, password, name, profile, queueIds, whatsappId } = req.body;
     if (req.url === "/signup" &&
         (yield (0, CheckSettings_1.default)("userCreation")) === "disabled") {
         throw new AppError_1.default("ERR_USER_CREATION_DISABLED", 403);
@@ -42,20 +41,13 @@ const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     else if (req.url !== "/signup" && req.user.profile !== "admin" && req.user.profile !== "superadmin") {
         throw new AppError_1.default("ERR_NO_PERMISSION", 403);
     }
-    let tenantId;
-    if (req.url === "/signup" && companyName) {
-        const tenant = yield (0, CreateTenantService_1.default)({
-            name: companyName,
-            status: "active"
-        });
-        tenantId = tenant.id;
-    }
     const user = yield (0, CreateUserService_1.default)({
         email,
         password,
         name,
-        profile: "admin",
-        tenantId
+        profile,
+        queueIds,
+        whatsappId
     });
     const io = (0, socket_1.getIO)();
     io.emit("user", {
@@ -72,14 +64,11 @@ const show = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.show = show;
 const update = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { userId } = req.params;
-    const userData = req.body;
-    if (req.user.profile !== "admin" && req.user.profile !== "superadmin" && req.user.id.toString() !== userId) {
+    if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
         throw new AppError_1.default("ERR_NO_PERMISSION", 403);
     }
-    if (req.file) {
-        userData.profileImage = req.file.filename;
-    }
+    const { userId } = req.params;
+    const userData = req.body;
     const user = yield (0, UpdateUserService_1.default)({ userData, userId, requestUser: req.user });
     const io = (0, socket_1.getIO)();
     io.emit("user", {

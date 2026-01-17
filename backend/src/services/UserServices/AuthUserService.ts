@@ -43,7 +43,7 @@ const AuthUserService = async ({
       { model: Whatsapp, as: "whatsapp", attributes: ["id", "name"] },
       {
         model: Group,
-        as: "group",
+        as: "groups",
         include: [{ model: Permission, as: "permissions", attributes: ["id", "name"] }]
       },
       { model: Permission, as: "permissions", attributes: ["id", "name"] }

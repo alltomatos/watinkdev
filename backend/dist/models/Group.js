@@ -40,6 +40,10 @@ __decorate([
     __metadata("design:type", Tenant_1.default)
 ], Group.prototype, "tenant", void 0);
 __decorate([
+    (0, sequelize_typescript_1.HasMany)(() => User_1.default, { sourceKey: "id", foreignKey: "groupId", as: "legacyUsers" }),
+    __metadata("design:type", Array)
+], Group.prototype, "legacyUsers", void 0);
+__decorate([
     (0, sequelize_typescript_1.BelongsToMany)(() => User_1.default, () => UserGroup_1.default),
     __metadata("design:type", Array)
 ], Group.prototype, "users", void 0);

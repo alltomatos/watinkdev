@@ -67,11 +67,19 @@ const useStyles = makeStyles((theme) => ({
         },
     },
     cardMedia: {
-        height: 140,
+        height: 160,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: theme.palette.grey[100],
+        backgroundColor: theme.palette.grey[50],
+        overflow: "hidden",
+        position: "relative",
+    },
+    cardImage: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        objectPosition: "center",
     },
     cardIcon: {
         fontSize: 64,
@@ -126,13 +134,35 @@ const Marketplace = () => {
     const loadPlugins = async () => {
         try {
             setLoading(true);
-            const { data: catalogRes } = await pluginApi.get("/api/v1/plugins/catalog");
+
+            // Fetch catalog (public, no auth required)
+            let catalogRes = { plugins: [], offline: false };
+            try {
+                const { data } = await pluginApi.get("/api/v1/plugins/catalog");
+                console.log("[Marketplace] Catalog response:", data);
+                catalogRes = data || { plugins: [], offline: false };
+            } catch (catalogErr) {
+                console.error("[Marketplace] Error fetching catalog:", catalogErr);
+                setOffline(true);
+            }
+
             setOffline(Boolean(catalogRes?.offline));
-            const { data: installedRes } = await pluginApi.get("/api/v1/plugins/installed");
-            const activeSlugs = new Set(Array.isArray(installedRes?.active) ? installedRes.active : []);
+
+            // Fetch installed plugins (requires auth, may fail)
+            let activeSlugs = new Set();
+            try {
+                const { data: installedRes } = await pluginApi.get("/api/v1/plugins/installed");
+                console.log("[Marketplace] Installed response:", installedRes);
+                activeSlugs = new Set(Array.isArray(installedRes?.active) ? installedRes.active : []);
+            } catch (installedErr) {
+                console.warn("[Marketplace] Could not fetch installed plugins:", installedErr.message);
+                // Continue without installed info - just show catalog
+            }
+
             const all = Array.isArray(catalogRes?.plugins) ? catalogRes.plugins : [];
-            const filtered = all.filter(p => ["clientes", "helpdesk"].includes(p.slug));
-            const normalized = filtered.map(p => ({
+            console.log("[Marketplace] Total plugins:", all.length);
+
+            const normalized = all.map(p => ({
                 id: p.id,
                 slug: p.slug,
                 name: p.name,
@@ -147,6 +177,7 @@ const Marketplace = () => {
             }));
             setPlugins(normalized);
         } catch (err) {
+            console.error("[Marketplace] Unexpected error:", err);
             toast.error("Erro ao carregar plugins");
         } finally {
             setLoading(false);
@@ -165,8 +196,8 @@ const Marketplace = () => {
 
     const filteredPlugins = plugins.filter(
         (plugin) =>
-            plugin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            plugin.description.toLowerCase().includes(searchTerm.toLowerCase())
+            (plugin.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (plugin.description || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const renderCards = () => (
@@ -176,7 +207,11 @@ const Marketplace = () => {
                     <Card className={classes.card} onClick={() => handlePluginClick(plugin)}>
                         <Box className={classes.cardMedia}>
                             {plugin.iconUrl ? (
-                                <img src={getBackendUrl(plugin.iconUrl)} alt={plugin.name} style={{ height: 80 }} />
+                                <img
+                                    src={getBackendUrl(plugin.iconUrl)}
+                                    alt={plugin.name}
+                                    className={classes.cardImage}
+                                />
                             ) : (
                                 <ExtensionIcon className={classes.cardIcon} />
                             )}

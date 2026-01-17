@@ -14,7 +14,7 @@ interface SerializedUser {
 }
 
 export const SerializeUser = (user: User): SerializedUser => {
-  const groupPermissions = user.group?.permissions?.map(p => p.name) || [];
+  const groupPermissions = user.groups?.flatMap(g => g.permissions?.map(p => p.name)) || [];
   const individualPermissions = user.permissions?.map(p => p.name) || [];
   const allPermissions = [...new Set([...groupPermissions, ...individualPermissions])];
 

@@ -16,7 +16,7 @@ const Setting_1 = __importDefault(require("../models/Setting"));
 const AppError_1 = __importDefault(require("../errors/AppError"));
 const CheckSettings = (key) => __awaiter(void 0, void 0, void 0, function* () {
     const setting = yield Setting_1.default.findOne({
-        where: { key, tenantId: null }
+        where: { key }
     });
     if (!setting) {
         throw new AppError_1.default("ERR_NO_SETTING_FOUND", 404);

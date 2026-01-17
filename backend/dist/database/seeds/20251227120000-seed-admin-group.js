@@ -49,16 +49,27 @@ module.exports = {
             groupId = newGroups[0][0].id;
         }
         // 4. Update User to belong to this Group
-        // 4. Update User to belong to this Group
-        const existingLinks = yield queryInterface.sequelize.query(`SELECT id FROM "UserGroups" WHERE "userId" = ${user.id} AND "groupId" = ${groupId} LIMIT 1;`);
-        if (existingLinks[0].length === 0) {
-            yield queryInterface.bulkInsert("UserGroups", [{
-                    userId: user.id,
-                    groupId: groupId,
-                    tenantId: tenantId,
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                }]);
+        const usersTableInfo = yield queryInterface.describeTable("Users");
+        if (usersTableInfo["groupId"]) {
+            yield queryInterface.sequelize.query(`UPDATE "Users" SET "groupId" = ${groupId} WHERE id = ${user.id}`);
+        }
+        // 4.1. Insert into UserGroups (New Many-to-Many)
+        try {
+            yield queryInterface.describeTable("UserGroups");
+            const userGroups = yield queryInterface.sequelize.query(`SELECT id FROM "UserGroups" WHERE "userId" = ${user.id} AND "groupId" = ${groupId} LIMIT 1;`);
+            if (userGroups[0].length === 0) {
+                yield queryInterface.bulkInsert("UserGroups", [{
+                        userId: user.id,
+                        groupId: groupId,
+                        tenantId: tenantId,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    }]);
+            }
+        }
+        catch (error) {
+            // UserGroups table might not exist yet if running in old migration order
+            console.log("UserGroups table does not exist. Skipping UserGroups seed.");
         }
         // 5. Get All Permissions
         const permissions = yield queryInterface.sequelize.query(`SELECT id FROM "Permissions"`);

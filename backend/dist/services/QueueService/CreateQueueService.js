@@ -48,7 +48,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Yup = __importStar(require("yup"));
 const AppError_1 = __importDefault(require("../../errors/AppError"));
 const Queue_1 = __importDefault(require("../../models/Queue"));
-const RedisService_1 = require("../../services/RedisService");
 const CreateQueueService = (queueData) => __awaiter(void 0, void 0, void 0, function* () {
     const { color, name } = queueData;
     const queueSchema = Yup.object().shape({
@@ -90,10 +89,6 @@ const CreateQueueService = (queueData) => __awaiter(void 0, void 0, void 0, func
         throw new AppError_1.default(err.message);
     }
     const queue = yield Queue_1.default.create(queueData);
-    if (queue.distributionMode) {
-        const redis = RedisService_1.RedisService.getInstance().getClient();
-        yield redis.hset(`queue:config:${queue.id}`, "distributionMode", queue.distributionMode);
-    }
     return queue;
 });
 exports.default = CreateQueueService;

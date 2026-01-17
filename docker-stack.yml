@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    image: watink/backend:1.3.197
+    image: watink/backend:1.3.224
     build:
       context: ./backend
       dockerfile: ./Dockerfile
@@ -53,7 +53,7 @@ services:
         - "traefik.docker.network=watink_watink_public"
 
   frontend:
-    image: watink/frontend:0.7.120
+    image: watink/frontend:0.7.187
     build:
       context: ./frontend
       dockerfile: ./Dockerfile
@@ -113,6 +113,9 @@ services:
 
   whaileys-engine:
     image: watink/engine:1.0.116
+    build:
+      context: ./engine-standard
+      dockerfile: ./Dockerfile
     environment:
       - AMQP_URL=amqp://guest:guest@rabbitmq:5672
       - REDIS_URL=redis://redis:6379
@@ -130,8 +133,8 @@ services:
           cpus: '0.50'
           memory: 2048M
 
-  flow-engine-worker:
-    image: watink/backend:1.3.197
+  flow-worker:
+    image: watink/backend:1.3.224
     command: ["node", "dist/flow-worker.js"]
     environment:
       - DB_DIALECT=postgres
@@ -186,6 +189,9 @@ services:
 
   postgres:
     image: ronaldodavi/pgvectorgis:latest
+    labels:
+      - com.docker.compose.project=${STACK_NAME:-watink}
+      - com.docker.compose.service=watink_postgres
     environment:
       - POSTGRES_DB=watink
       - POSTGRES_PASSWORD=postgres

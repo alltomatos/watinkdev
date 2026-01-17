@@ -9,6 +9,7 @@ import Message from "../models/Message";
 import Queue from "../models/Queue";
 import WhatsappQueue from "../models/WhatsappQueue";
 import UserQueue from "../models/UserQueue";
+import UserGroup from "../models/UserGroup";
 import QuickAnswer from "../models/QuickAnswer";
 import Tenant from "../models/Tenant";
 import Pipeline from "../models/Pipeline";
@@ -31,6 +32,7 @@ import Protocol from "../models/Protocol";
 import ProtocolHistory from "../models/ProtocolHistory";
 import ProtocolAttachment from "../models/ProtocolAttachment";
 import ConversationEmbedding from "../models/ConversationEmbedding";
+import TenantSmtpSettings from "../models/TenantSmtpSettings";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
@@ -48,6 +50,7 @@ const models = [
   Queue,
   WhatsappQueue,
   UserQueue,
+  UserGroup,
   QuickAnswer,
   Tenant,
   Pipeline,
@@ -69,7 +72,8 @@ const models = [
   Protocol,
   ProtocolHistory,
   ProtocolAttachment,
-  ConversationEmbedding
+  ConversationEmbedding,
+  TenantSmtpSettings
 ];
 
 sequelize.addModels(models);

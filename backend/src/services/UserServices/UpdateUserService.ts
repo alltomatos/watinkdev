@@ -12,6 +12,7 @@ interface UserData {
   profile?: string;
   queueIds?: number[];
   whatsappId?: number;
+  groupIds?: number[];
 }
 
 interface RequestUser {
@@ -53,7 +54,8 @@ const UpdateUserService = async ({
     profile,
     name,
     queueIds = [],
-    whatsappId
+    whatsappId,
+    groupIds = []
   } = userData;
 
   try {
@@ -76,6 +78,7 @@ const UpdateUserService = async ({
   });
 
   await user.$set("queues", queueIds);
+  await user.$set("groups", groupIds);
 
   // Ensure superadmin has all permissions if profile is being updated to superadmin
   if (profile === "superadmin" || (user.profile === "superadmin" && profile === undefined)) {

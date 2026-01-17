@@ -30,7 +30,7 @@ const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 exports.index = index;
 const getPublicSettings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const settings = yield (0, ListSettingsService_1.default)();
-    const publicKeys = ["systemLogo", "login_backgroundImage", "login_layout", "systemFavicon", "language", "userCreation"];
+    const publicKeys = ["systemLogo", "login_backgroundImage", "login_layout", "systemFavicon"];
     const publicSettings = (settings || []).filter(s => publicKeys.includes(s.key));
     return res.status(200).json(publicSettings);
 });
@@ -41,10 +41,7 @@ const update = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
     const { settingKey: key } = req.params;
     const { value } = req.body;
-    let tenantId = req.user.tenantId;
-    if (key === "userCreation") {
-        tenantId = null;
-    }
+    const { tenantId } = req.user;
     const setting = yield (0, UpdateSettingService_1.default)({
         key,
         value,
