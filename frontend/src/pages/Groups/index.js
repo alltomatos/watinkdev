@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useReducer } from "react";
 import { toast } from "react-toastify";
+import { useHistory } from "react-router-dom";
 
 import {
     makeStyles,
@@ -28,7 +29,6 @@ import Title from "../../components/Title";
 import api from "../../services/api";
 import { i18n } from "../../translate/i18n";
 import TableRowSkeleton from "../../components/TableRowSkeleton";
-import GroupModal from "./GroupModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import toastError from "../../errors/toastError";
 import { Can } from "../../components/Can";
@@ -91,13 +91,12 @@ const useStyles = makeStyles((theme) => ({
 const Groups = () => {
     const classes = useStyles();
     const { user } = useAuth();
+    const history = useHistory();
 
     const [loading, setLoading] = useState(false);
     const [pageNumber, setPageNumber] = useState(1);
     const [hasMore, setHasMore] = useState(false);
-    const [selectedGroup, setSelectedGroup] = useState(null);
     const [deletingGroup, setDeletingGroup] = useState(null);
-    const [groupModalOpen, setGroupModalOpen] = useState(false);
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [searchParam, setSearchParam] = useState("");
     const [groups, dispatch] = useReducer(reducer, []);
@@ -132,14 +131,8 @@ const Groups = () => {
         return () => clearTimeout(delayDebounceFn);
     }, [searchParam, pageNumber]);
 
-    const handleOpenGroupModal = () => {
-        setSelectedGroup(null);
-        setGroupModalOpen(true);
-    };
-
-    const handleCloseGroupModal = () => {
-        setSelectedGroup(null);
-        setGroupModalOpen(false);
+    const handleAddGroup = () => {
+        history.push("/groups/new");
     };
 
     const handleSearch = (event) => {
@@ -147,8 +140,7 @@ const Groups = () => {
     };
 
     const handleEditGroup = (group) => {
-        setSelectedGroup(group);
-        setGroupModalOpen(true);
+        history.push(`/groups/${group.id}`);
     };
 
     const handleDeleteGroup = async (groupId) => {
@@ -186,11 +178,7 @@ const Groups = () => {
             >
                 {i18n.t("groups.confirmationModal.deleteMessage")}
             </ConfirmationModal>
-            <GroupModal
-                open={groupModalOpen}
-                onClose={handleCloseGroupModal}
-                groupId={selectedGroup ? selectedGroup.id : null}
-            />
+
             <MainHeader>
                 <Title>{i18n.t("groups.title")}</Title>
                 <MainHeaderButtonsWrapper>
@@ -209,7 +197,7 @@ const Groups = () => {
                     />
                     <ButtonWithSpinner
                         loading={loading}
-                        onClick={handleOpenGroupModal}
+                        onClick={handleAddGroup}
                         variant="contained"
                         color="primary"
                     >
