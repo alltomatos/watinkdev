@@ -463,28 +463,7 @@ const Settings = () => {
 				Configurações Gerais
 			</Typography>
 
-			<Paper className={classes.paper}>
-				<Typography variant="body1">
-					{i18n.t("settings.settings.userCreation.name")}
-				</Typography>
-				<Select
-					margin="dense"
-					variant="outlined"
-					native
-					id="userCreation-setting"
-					name="userCreation"
-					value={settings && settings.length > 0 && getSettingValue("userCreation")}
-					className={classes.settingOption}
-					onChange={handleChangeSetting}
-				>
-					<option value="enabled">
-						{i18n.t("settings.settings.userCreation.options.enabled")}
-					</option>
-					<option value="disabled">
-						{i18n.t("settings.settings.userCreation.options.disabled")}
-					</option>
-				</Select>
-			</Paper>
+
 
 			<Paper className={classes.paper}>
 				<Typography variant="body1">Fuso Horário</Typography>
@@ -540,6 +519,54 @@ const Settings = () => {
 					<option value="dark">Dark Mode Theme</option>
 				</Select>
 			</Paper>
+
+			<Paper className={classes.paper}>
+				<Typography variant="body1">{i18n.t("settings.settings.language.name")}</Typography>
+				<Select
+					margin="dense"
+					variant="outlined"
+					native
+					id="language-setting"
+					name="language"
+					value={i18n.language}
+					className={classes.settingOption}
+					onChange={(e) => {
+						i18n.changeLanguage(e.target.value);
+						localStorage.setItem("i18nextLng", e.target.value);
+						// Reload page to apply translations everywhere
+						window.location.reload();
+					}}
+				>
+					<option value="pt">{i18n.t("settings.settings.language.options.pt")}</option>
+					<option value="en">{i18n.t("settings.settings.language.options.en")}</option>
+					<option value="es">{i18n.t("settings.settings.language.options.es")}</option>
+				</Select>
+			</Paper>
+
+			{settings && settings.length > 0 && settings.find(s => s.key === "allowTenantControl")?.value === "true" && (
+				<Paper className={classes.paper}>
+					<Typography variant="body1">
+						{i18n.t("settings.settings.userCreation.name")}
+					</Typography>
+					<Select
+						margin="dense"
+						variant="outlined"
+						native
+						id="userCreation-setting"
+						name="userCreation"
+						value={settings && settings.length > 0 && getSettingValue("userCreation")}
+						className={classes.settingOption}
+						onChange={handleChangeSetting}
+					>
+						<option value="enabled">
+							{i18n.t("settings.settings.userCreation.options.enabled")}
+						</option>
+						<option value="disabled">
+							{i18n.t("settings.settings.userCreation.options.disabled")}
+						</option>
+					</Select>
+				</Paper>
+			)}
 
 			<Paper className={classes.paper}>
 				<TextField

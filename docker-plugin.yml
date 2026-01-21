@@ -8,7 +8,7 @@ services:
       - JWT_SECRET=3123123213123
       - FRONTEND_URL=${FRONTEND_URL:-http://app.localhost}
     networks:
-      - proxy
+      - watink_proxy
       - watink_network
     deploy:
       mode: replicated
@@ -46,9 +46,9 @@ services:
           memory: 256M
 
 networks:
-  proxy:
+  watink_proxy:
     external: true
-    name: watink_proxy
+    name: watink_watink_proxy
   watink_network:
     external: true
     name: watink_network
