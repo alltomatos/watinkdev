@@ -25,7 +25,7 @@ import EmailTemplate from "../../models/EmailTemplate";
 import RabbitMQService from "../RabbitMQService";
 import { getPremiumWelcomeEmail } from "../../helpers/EmailTemplates";
 import { Op } from "sequelize";
-import SendPasswordResetEmailService from "./SendPasswordResetEmailService";
+import SendVerificationEmailService from "./SendVerificationEmailService";
 
 interface Response {
   email: string;
@@ -139,16 +139,13 @@ const CreateUserService = async ({
     await user.$set("groups", groupIds);
   }
 
-  // Send Welcome Email (Async) via Password Reset Link
-  // Send Welcome Email (Async) via Password Reset Link ONLY if verify is needed
+  // Send Verification Email (Async)
   if (tenantId && !emailVerified) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    // We don't await here to not block the response, or we can await if we want to ensure email is sent.
-    // Given it uses RabbitMQ inside service, it should be fast.
     try {
-      await SendPasswordResetEmailService(email, frontendUrl);
+      await SendVerificationEmailService(email, frontendUrl);
     } catch (err) {
-      console.error("Failed to send welcome/reset email", err);
+      console.error("Failed to send verification email", err);
     }
   }
 

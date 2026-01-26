@@ -548,7 +548,7 @@ const UserEdit = () => {
                                                     {i18n.t("userModal.buttons.sendResetPassword")}
                                                 </Button>
 
-                                                {loggedInUser.profile === "admin" && !user.emailVerified && (
+                                                {(loggedInUser.profile === "admin" || loggedInUser.profile === "superadmin") && !user.emailVerified && (
                                                     <Button
                                                         variant="outlined"
                                                         color="secondary"
