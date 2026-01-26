@@ -22,6 +22,13 @@ Abaixo estão os prefixos de rota definidos em `src/routes/index.ts`:
 - `/pipelines`: Gestão de funis de vendas (Kanban).
 - `/deals`: Negócios/Oportunidades.
 - `/groups`: Gestão de grupos do WhatsApp.
+- `/campaigns`: Campanhas de disparo em massa.
+
+### Módulos Avançados (Novo)
+- `/flow`: Construtor de Fluxos (Automation Engine).
+- `/knowledge`: Base de Conhecimento para Agentes de IA.
+- `/prompts`: Gestão de Prompts para IA.
+- `/invoices`: Faturamento e cobrança (SaaS).
 
 ### Configurações
 - `/settings`: Configurações globais do sistema.
@@ -29,10 +36,12 @@ Abaixo estão os prefixos de rota definidos em `src/routes/index.ts`:
 - `/microservices`: Integração com microsserviços.
 
 ### Outros
-- `/api`: Rotas para integrações externas (Token API).
-- `/version`: Informações de versão.
-- `/flow`: Rotas do construtor de fluxos.
-- `/knowledge`: Base de conhecimento para IA.
+- `/api`: Rotas públicas de integração (v1).
+- `/version`: Informações de versão e health check.
+
+## Documentação Interativa (Swagger)
+Para detalhes de payload e resposta, acesse o Swagger UI rodando localmente:
+`http://localhost/docs`
 
 ## Autenticação
 A maioria das rotas requer um token Bearer JWT no cabeçalho `Authorization`.

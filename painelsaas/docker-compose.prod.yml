@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # 🧠 Banco de Dados (Postgres) - Rede Interna Apenas
+  postgres:
+    image: postgres:15-alpine
+    container_name: saas_prod_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - watink-internal
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # ⚡ Redis - Rede Interna Apenas
+  redis:
+    image: redis:alpine
+    container_name: saas_prod_redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - watink-internal
+
+  # 🐇 RabbitMQ - Rede Interna + Exposta se necessário Dashboard (mas idealmente interna)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: saas_prod_rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    volumes:
+      - rabbitmq_prod_data:/var/lib/rabbitmq
+    networks:
+      - watink-internal
+      # Não exposto no Traefik por padrão por segurança, dashboard via tunnel ou VPN recomendado
+
+      # 🖥️ Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: saas_prod_backend
+    restart: always
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks:
+      - watink-internal
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.watink-api.rule=Host(`apisaas.watink.com`)"
+      - "traefik.http.routers.watink-api.entrypoints=websecure"
+      - "traefik.http.routers.watink-api.tls.certresolver=letsencryptresolver"
+      - "traefik.http.services.watink-api.loadbalancer.server.port=3000"
+
+  # 🔔 Push Proxy
+  push-proxy:
+    build:
+      context: ./push-proxy
+      dockerfile: Dockerfile
+    container_name: saas_prod_push_proxy
+    restart: always
+    environment:
+      PORT: 8080
+      REDIS_ADDR: redis:6379
+      # REDIS_PASSWORD: ${REDIS_PASSWORD} # TODO: Add password support to push-proxy code
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      FIREBASE_CREDENTIALS: /app/service-account.json
+    volumes:
+      - ./push-proxy/service-account.json:/app/service-account.json
+    networks:
+      - watink-internal
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.watink-push.rule=Host(`push.watink.com`)"
+      - "traefik.http.routers.watink-push.entrypoints=websecure"
+      - "traefik.http.routers.watink-push.tls.certresolver=letsencryptresolver"
+      - "traefik.http.services.watink-push.loadbalancer.server.port=8080"
+
+  # 🎨 Frontend (Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: saas_prod_frontend
+    restart: always
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.watink-front.rule=Host(`saas.watink.com`)"
+      - "traefik.http.routers.watink-front.entrypoints=websecure"
+      - "traefik.http.routers.watink-front.tls.certresolver=letsencryptresolver"
+      - "traefik.http.services.watink-front.loadbalancer.server.port=80"
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+  rabbitmq_prod_data:
+
+
+networks:
+  watink-internal:
+    driver: bridge # Interna
+  proxy:
+    external: true # Rede Overlay do Swarm Existente

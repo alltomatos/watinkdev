@@ -17,9 +17,10 @@ services:
 
       
   plugin-smtp:
-    image: watink/plugin-smtp:latest
+    image: watink/plugin-smtp:1.0.7
     environment:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - SMTP_CONCURRENCY=50
     networks:
       - watink_network
     deploy:

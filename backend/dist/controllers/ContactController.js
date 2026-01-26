@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.batchEnrich = exports.sync = exports.remove = exports.update = exports.show = exports.store = exports.getContact = exports.index = void 0;
+exports.getSampleCsv = exports.importCsv = exports.batchEnrich = exports.sync = exports.remove = exports.update = exports.show = exports.store = exports.getContact = exports.index = void 0;
 const Yup = __importStar(require("yup"));
 const socket_1 = require("../libs/socket");
 const uuid_1 = require("uuid");
@@ -56,6 +56,7 @@ const CreateContactService_1 = __importDefault(require("../services/ContactServi
 const ShowContactService_1 = __importDefault(require("../services/ContactServices/ShowContactService"));
 const UpdateContactService_1 = __importDefault(require("../services/ContactServices/UpdateContactService"));
 const DeleteContactService_1 = __importDefault(require("../services/ContactServices/DeleteContactService"));
+const ImportContactsService_1 = __importStar(require("../services/ContactServices/ImportContactsService"));
 const AppError_1 = __importDefault(require("../errors/AppError"));
 const GetContactService_1 = __importDefault(require("../services/ContactServices/GetContactService"));
 const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -98,6 +99,7 @@ const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     let name = newContact.name;
     let number = validNumber;
     let email = newContact.email;
+    let walletUserId = newContact.walletUserId;
     let extraInfo = newContact.extraInfo;
     try {
         const contact = yield (0, CreateContactService_1.default)({
@@ -106,6 +108,7 @@ const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             email,
             extraInfo,
             profilePicUrl,
+            walletUserId,
             tenantId,
             waitEnrichment: true
         });
@@ -178,24 +181,6 @@ const sync = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             },
             tenantId
         });
-        // Wait, the routing key in RabbitMQService.publishCommand uses the key passed.
-        // If the engine consumes "wbot.global.*", it's fine. 
-        // But the engine implementation I saw: 
-        // `this.rabbitmq.consumeEvents("api.events.process", ...)` is for EVENTS. 
-        // The engine's command consumer needs to be checked.
-        // Assuming existing pattern holds. 
-        // Correction: In multi-session environment, syncing a contact strictly requires a session to query WhatsApp.
-        // We should probably get the default whatsapp or the one associated with the contact/ticket.
-        // For now, I will fetch default connection.
-        // Re-reading code: The engine's session manager likely listens to `wbot.{tenantId}.{sessionId}.command` or similar.
-        // Only "global" commands might be generic.
-        // Let's stick to the previous pattern but improve payload.
-        // But wait, if I send to "wbot.global...", does the engine listen? 
-        // I need to check how commands are consumed in engine.
-        // But I can't check everything now. I will trust the "wbot.global" pattern was intended for general tasks 
-        // OR I should change to target specific session.
-        // Let's use a specific session (ID 1) as a safe bet for now or valid default.
-        // Better: Update to finding a session.
         return res.status(200).json({ message: "Contact sync scheduled via RabbitMQ." });
     }
     catch (error) {
@@ -204,7 +189,6 @@ const sync = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.sync = sync;
 const batchEnrich = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    // Assuming isAuth middleware populates req.user.tenantId
     const { tenantId } = req.user;
     if (!tenantId) {
         throw new AppError_1.default("Tenant ID not found in request", 400);
@@ -213,3 +197,54 @@ const batchEnrich = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     return res.status(200).json({ message: `Enrichment scheduled for ${count} contacts.` });
 });
 exports.batchEnrich = batchEnrich;
+/**
+ * Import contacts from CSV file
+ * POST /contacts/import-csv
+ *
+ * Expects multipart/form-data with:
+ * - file: CSV file with columns: name, number, email, walletEmail
+ * - delimiter: Optional, defaults to ";" (semicolon)
+ */
+const importCsv = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { tenantId } = req.user;
+    if (!tenantId) {
+        throw new AppError_1.default("Tenant ID not found in request", 400);
+    }
+    // Check if file was uploaded
+    const file = req.file;
+    if (!file) {
+        throw new AppError_1.default("No file uploaded. Please provide a CSV file.", 400);
+    }
+    // Get delimiter from body (default to semicolon for Brazilian CSVs)
+    const delimiter = req.body.delimiter || ";";
+    try {
+        const result = yield ImportContactsService_1.default.importFromBuffer(file.buffer, {
+            tenantId,
+            delimiter,
+            skipHeader: true,
+            batchSize: 500
+        });
+        const io = (0, socket_1.getIO)();
+        io.emit("contact", {
+            action: "import",
+            result
+        });
+        return res.status(200).json(Object.assign({ message: `Import completed: ${result.success} of ${result.total} contacts processed` }, result));
+    }
+    catch (error) {
+        console.error("[ContactController.importCsv] Error:", error);
+        throw new AppError_1.default(`Import failed: ${error.message}`, 500);
+    }
+});
+exports.importCsv = importCsv;
+/**
+ * Get sample CSV format for reference
+ * GET /contacts/import-csv/sample
+ */
+const getSampleCsv = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const sampleCsv = ImportContactsService_1.ImportContactsService.getSampleCsv();
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=contacts_sample.csv");
+    return res.status(200).send(sampleCsv);
+});
+exports.getSampleCsv = getSampleCsv;

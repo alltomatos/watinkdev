@@ -1,0 +1,5 @@
+vendor
+panel-core
+.git
+.env
+.DS_Store

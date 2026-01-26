@@ -18,6 +18,7 @@ const Ticket_1 = __importDefault(require("./Ticket"));
 const Tenant_1 = __importDefault(require("./Tenant"));
 const Client_1 = __importDefault(require("./Client"));
 const ClientContact_1 = __importDefault(require("./ClientContact"));
+const User_1 = __importDefault(require("./User"));
 let Contact = class Contact extends sequelize_typescript_1.Model {
 };
 __decorate([
@@ -58,6 +59,16 @@ __decorate([
     sequelize_typescript_1.Column,
     __metadata("design:type", Boolean)
 ], Contact.prototype, "isGroup", void 0);
+__decorate([
+    (0, sequelize_typescript_1.ForeignKey)(() => User_1.default),
+    (0, sequelize_typescript_1.AllowNull)(true),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Number)
+], Contact.prototype, "walletUserId", void 0);
+__decorate([
+    (0, sequelize_typescript_1.BelongsTo)(() => User_1.default, "walletUserId"),
+    __metadata("design:type", User_1.default)
+], Contact.prototype, "walletUser", void 0);
 __decorate([
     (0, sequelize_typescript_1.ForeignKey)(() => Tenant_1.default),
     (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.UUID),

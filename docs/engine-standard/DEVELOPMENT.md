@@ -1,27 +1,26 @@
 # Guia de Desenvolvimento (Engine)
 
-## Setup Local
+# Guia de Desenvolvimento (Engine)
 
-1. Instale as dependências:
+> [!WARNING]
+> Este serviço deve rodar containerizado no Docker Swarm. **Não execute localmente via npm**, pois depende de RabbitMQ e Redis configurados na rede interna (`watink_network`).
+
+## Ciclo de Desenvolvimento
+
+Para testar alterações no código:
+
+1. Edite os arquivos em `src/`.
+2. Execute o script de atualização:
    ```bash
-   npm install
+   ./update.sh engine
    ```
+   Isso irá recompilar a imagem e atualizar o serviço no Swarm.
 
-2. Configure as variáveis de ambiente (`.env`):
-   ```bash
-   AMQP_URL=amqp://guest:guest@localhost:5672
-   ```
+## Logs e Debug
 
-3. Execute em modo de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
-
-## Docker
-
-Para construir a imagem localmente:
+Acompanhe o processamento em tempo real:
 ```bash
-docker build -t watink/engine .
+docker service logs -f watink_whaileys-engine
 ```
 
 ## Estrutura de Pastas Importantes

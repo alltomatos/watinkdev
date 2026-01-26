@@ -17,8 +17,9 @@ interface Request {
   number: string;
   email?: string;
   profilePicUrl?: string;
+  walletUserId?: number | null;
   extraInfo?: ExtraInfo[];
-  tenantId?: number | string;
+  tenantId?: string;
   waitEnrichment?: boolean; // NEW
 }
 
@@ -26,6 +27,7 @@ const CreateContactService = async ({
   name,
   number,
   email = "",
+  walletUserId,
   extraInfo = [],
   tenantId,
   waitEnrichment = false // Default false to maintain backward compat unless requested
@@ -47,6 +49,7 @@ const CreateContactService = async ({
       name,
       number,
       email,
+      walletUserId,
       extraInfo,
       tenantId
     },

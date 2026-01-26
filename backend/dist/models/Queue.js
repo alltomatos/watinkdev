@@ -12,12 +12,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.DISTRIBUTION_STRATEGIES = void 0;
 const sequelize_typescript_1 = require("sequelize-typescript");
 const User_1 = __importDefault(require("./User"));
 const UserQueue_1 = __importDefault(require("./UserQueue"));
 const Tenant_1 = __importDefault(require("./Tenant"));
 const Whatsapp_1 = __importDefault(require("./Whatsapp"));
 const WhatsappQueue_1 = __importDefault(require("./WhatsappQueue"));
+// Distribution strategy constants
+exports.DISTRIBUTION_STRATEGIES = {
+    MANUAL: "MANUAL",
+    AUTO_ROUND_ROBIN: "AUTO_ROUND_ROBIN",
+    AUTO_BALANCED: "AUTO_BALANCED"
+};
 let Queue = class Queue extends sequelize_typescript_1.Model {
 };
 __decorate([
@@ -42,6 +49,18 @@ __decorate([
     sequelize_typescript_1.Column,
     __metadata("design:type", String)
 ], Queue.prototype, "greetingMessage", void 0);
+__decorate([
+    (0, sequelize_typescript_1.AllowNull)(false),
+    (0, sequelize_typescript_1.Default)("MANUAL"),
+    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.STRING(50)),
+    __metadata("design:type", String)
+], Queue.prototype, "distributionStrategy", void 0);
+__decorate([
+    (0, sequelize_typescript_1.AllowNull)(false),
+    (0, sequelize_typescript_1.Default)(false),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Boolean)
+], Queue.prototype, "prioritizeWallet", void 0);
 __decorate([
     sequelize_typescript_1.CreatedAt,
     __metadata("design:type", Date)

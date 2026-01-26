@@ -25,8 +25,6 @@ type GroupFilter = {
 export const index = async (req: Request, res: Response): Promise<Response> => {
     try {
         const { tenantId } = req.user;
-        console.log("DEBUG: GroupController.index tenantId:", tenantId, "UserID:", req.user.id);
-        console.log("DEBUG: GroupController.index tenantId:", tenantId, "User:", req.user);
 
         const groups = await Group.findAll({
             where: { tenantId },
@@ -38,7 +36,6 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 
         return res.json(groups);
     } catch (err) {
-        console.error("DEBUG: GroupController.index Error:", err);
         throw new AppError("INTERNAL_SERVER_ERROR", 500);
     }
 };
@@ -61,17 +58,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
         name: data.name,
         tenantId
     });
-
-    if (data.permissions && data.permissions.length > 0) {
-        await group.$set("permissions", data.permissions);
-    }
-
-    // Associar IDs de permissão pivot com tenantId (Se necessário customizar a pivot, faríamos loop)
-    // Mas como a pivot tem tenantId, o sequelize pode não preencher auto se usarmos apenas $set ids.
-    // Vamos corrigir isso: para GroupPermission precisamos setar tenantId.
-    // Como o Sequelize BelongsToMany set padrão é simples, é melhor iterar se quisermos garantir tenantId na pivot.
-    // OBS: Na migration, GroupPermissions.tenantId é NotNull.
-    // Vamos usar addPermissions passando through options.
 
     if (data.permissions && data.permissions.length > 0) {
         const permissions = await Permission.findAll({ where: { id: data.permissions } });

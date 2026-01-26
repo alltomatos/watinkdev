@@ -5,20 +5,22 @@ O backend do projeto Watink é construído utilizando **Node.js** com **TypeScri
 
 ## Tecnologias Principais
 - **Runtime**: Node.js
-- **Linguagem**: TypeScript
+- **Linguagem**: TypeScript (Node.js 20+)
 - **Web Framework**: Express
-- **ORM**: Sequelize (PostgreSQL)
+- **ORM**: Sequelize (PostgreSQL 14+ com PGVector)
 - **Filas**: RabbitMQ (amqplib)
+- **Cache/Lock**: Redis
 - **Real-time**: Socket.io
-- **Monitoramento**: Sentry
+- **Monitoramento**: Sentry / Docker Logs
 
 ## Estrutura de Diretórios
 - `src/controllers`: Lógica de entrada/saída das requisições HTTP.
 - `src/services`: Regras de negócio e acesso ao banco de dados.
 - `src/routes`: Definição dos endpoints da API.
 - `src/models`: Definição dos esquemas do banco de dados (Sequelize).
-- `src/database`: Configuração e migrações do banco.
-- `src/queues`: Processamento de tarefas em segundo plano (RabbitMQ).
+- `src/database`: Migrations e Seeds.
+- `src/queues`: Consumers e Producers do RabbitMQ (Workers).
+- `src/libs`: Integrações externas (Wbot, IA, Storage).
 - `src/helpers`: Funções utilitárias.
 
 ## Fluxo de Dados

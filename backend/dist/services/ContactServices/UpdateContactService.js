@@ -40,11 +40,12 @@ const UpdateContactService = (_a) => __awaiter(void 0, [_a], void 0, function* (
             }
         })));
     }
-    const { email: newEmail, name: newName, number: newNumber, extraInfo: newExtraInfo, lid } = contactData;
+    const { email: newEmail, name: newName, number: newNumber, walletUserId: newWalletUserId, extraInfo: newExtraInfo, lid } = contactData;
     yield contact.update({
         name: newName,
         number: newNumber,
         email: newEmail,
+        walletUserId: newWalletUserId,
         lid
     });
     yield contact.reload({

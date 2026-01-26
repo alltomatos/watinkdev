@@ -58,7 +58,7 @@ const UpdateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ u
         profile: Yup.string(),
         password: Yup.string()
     });
-    const { email, password, profile, name, queueIds = [], whatsappId } = userData;
+    const { email, password, profile, name, queueIds = [], whatsappId, groupIds = [], profileImage } = userData;
     try {
         yield schema.validate({ email, password, profile, name });
     }
@@ -74,9 +74,11 @@ const UpdateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ u
         password,
         profile,
         name,
-        whatsappId: whatsappId ? whatsappId : null
+        whatsappId: whatsappId ? whatsappId : null,
+        profileImage
     });
     yield user.$set("queues", queueIds);
+    yield user.$set("groups", groupIds);
     // Ensure superadmin has all permissions if profile is being updated to superadmin
     if (profile === "superadmin" || (user.profile === "superadmin" && profile === undefined)) {
         const allPermissions = yield Permission_1.default.findAll();

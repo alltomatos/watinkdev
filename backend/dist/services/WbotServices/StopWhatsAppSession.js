@@ -27,6 +27,11 @@ const StopWhatsAppSession = (whatsappId) => __awaiter(void 0, void 0, void 0, fu
                 action: "update",
                 session: whatsapp
             });
+            // SKIP IF WEBCHAT - No need to tell Engine Standard
+            if (whatsapp.type === "webchat") {
+                logger_1.logger.info(`StopWhatsAppSession: Skipping engine command for Webchat session ${whatsappId}`);
+                return;
+            }
         }
         const envelope = {
             id: (0, uuid_1.v4)(),

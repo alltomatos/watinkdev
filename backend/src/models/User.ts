@@ -58,9 +58,29 @@ class User extends Model<User> {
   @Column
   profile: string;
 
+  @Default(true)
+  @Column
+  enabled: boolean;
+
+  @Default(false)
+  @Column
+  emailVerified: boolean;
+
   @AllowNull(true)
   @Column
   lastAssignmentAt: Date;
+
+  @AllowNull(true)
+  @Column
+  verificationToken: string;
+
+  @AllowNull(true)
+  @Column
+  passwordResetToken: string;
+
+  @AllowNull(true)
+  @Column
+  passwordResetExpires: Date;
 
   @ForeignKey(() => Whatsapp)
   @Column

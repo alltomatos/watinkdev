@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # 🧠 Banco de Dados Principal do Painel SaaS
+  postgres:
+    image: postgres:15-alpine
+    container_name: saas_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-painelsaas}
+    ports:
+      - "5433:5432" # Porta externa 5433 para não conflitar com Watink padrão
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - saas_network
+
+  # ⚡ Cache & Autenticação (Licenças)
+  redis:
+    image: redis:alpine
+    container_name: saas_redis
+    restart: always
+    command: redis-server --appendonly yes # Persistência
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - saas_network
+
+  # 🐇 Mensageria (Push Notifications Async)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: saas_rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "5672:5672"   # Protocolo AMQP
+      - "15672:15672" # Dashboard Web
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - saas_network
+
+  # 🖥️ Backend do Painel SaaS (API de Gestão)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: saas_backend
+    restart: unless-stopped
+    ports:
+      - "8081:8081" # Porta definida no main.go original
+    environment:
+      PORT: 8081
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-painelsaas}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - saas_network
+
+  # 🔔 Microserviço de Push Notifications (Proxy)
+  push-proxy:
+    build:
+      context: ./push-proxy
+      dockerfile: Dockerfile
+    container_name: saas_push_proxy
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      REDIS_ADDR: redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      # FIREBASE_CREDENTIALS deve ser montado via volume ou secret em produção
+      FIREBASE_CREDENTIALS: /app/service-account.json
+    volumes:
+      # Mock do arquivo para evitar erro no startup se não existir
+      - ./push-proxy/service-account.json:/app/service-account.json
+    depends_on:
+      - redis
+      - rabbitmq
+    networks:
+      - saas_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  saas_network:
+    driver: bridge

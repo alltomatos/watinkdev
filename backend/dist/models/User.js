@@ -32,6 +32,7 @@ const Group_1 = __importDefault(require("./Group"));
 const Permission_1 = __importDefault(require("./Permission"));
 const UserPermission_1 = __importDefault(require("./UserPermission"));
 const UserGroup_1 = __importDefault(require("./UserGroup"));
+const Contact_1 = __importDefault(require("./Contact"));
 let User = class User extends sequelize_typescript_1.Model {
     constructor() {
         super(...arguments);
@@ -60,6 +61,10 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "email", void 0);
 __decorate([
+    sequelize_typescript_1.Column,
+    __metadata("design:type", String)
+], User.prototype, "profileImage", void 0);
+__decorate([
     (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.VIRTUAL),
     __metadata("design:type", String)
 ], User.prototype, "password", void 0);
@@ -77,6 +82,36 @@ __decorate([
     sequelize_typescript_1.Column,
     __metadata("design:type", String)
 ], User.prototype, "profile", void 0);
+__decorate([
+    (0, sequelize_typescript_1.Default)(true),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Boolean)
+], User.prototype, "enabled", void 0);
+__decorate([
+    (0, sequelize_typescript_1.Default)(false),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Boolean)
+], User.prototype, "emailVerified", void 0);
+__decorate([
+    (0, sequelize_typescript_1.AllowNull)(true),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Date)
+], User.prototype, "lastAssignmentAt", void 0);
+__decorate([
+    (0, sequelize_typescript_1.AllowNull)(true),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", String)
+], User.prototype, "verificationToken", void 0);
+__decorate([
+    (0, sequelize_typescript_1.AllowNull)(true),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", String)
+], User.prototype, "passwordResetToken", void 0);
+__decorate([
+    (0, sequelize_typescript_1.AllowNull)(true),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Date)
+], User.prototype, "passwordResetExpires", void 0);
 __decorate([
     (0, sequelize_typescript_1.ForeignKey)(() => Whatsapp_1.default),
     sequelize_typescript_1.Column,
@@ -99,6 +134,10 @@ __decorate([
     __metadata("design:type", Array)
 ], User.prototype, "tickets", void 0);
 __decorate([
+    (0, sequelize_typescript_1.HasMany)(() => Contact_1.default, "walletUserId"),
+    __metadata("design:type", Array)
+], User.prototype, "walletContacts", void 0);
+__decorate([
     (0, sequelize_typescript_1.BelongsToMany)(() => Queue_1.default, () => UserQueue_1.default),
     __metadata("design:type", Array)
 ], User.prototype, "queues", void 0);
@@ -111,15 +150,6 @@ __decorate([
     (0, sequelize_typescript_1.BelongsTo)(() => Tenant_1.default),
     __metadata("design:type", Tenant_1.default)
 ], User.prototype, "tenant", void 0);
-__decorate([
-    (0, sequelize_typescript_1.ForeignKey)(() => Group_1.default),
-    sequelize_typescript_1.Column,
-    __metadata("design:type", Number)
-], User.prototype, "groupId", void 0);
-__decorate([
-    (0, sequelize_typescript_1.BelongsTo)(() => Group_1.default),
-    __metadata("design:type", Group_1.default)
-], User.prototype, "group", void 0);
 __decorate([
     (0, sequelize_typescript_1.BelongsToMany)(() => Group_1.default, () => UserGroup_1.default),
     __metadata("design:type", Array)

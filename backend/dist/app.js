@@ -61,12 +61,54 @@ const routes_1 = __importDefault(require("./routes"));
 const logger_1 = require("./utils/logger");
 Sentry.init({ dsn: process.env.SENTRY_DSN });
 const app = (0, express_1.default)();
-app.use((0, cors_1.default)({
+const protectedRoutesCors = (0, cors_1.default)({
     credentials: true,
     origin: (origin, callback) => {
-        callback(null, true);
+        let frontendUrl = process.env.FRONTEND_URL || "http://app.localhost";
+        if (frontendUrl.endsWith("/")) {
+            frontendUrl = frontendUrl.slice(0, -1);
+        }
+        const allowedOrigins = [
+            frontendUrl,
+            frontendUrl.replace("http://", "https://"),
+            frontendUrl.replace("https://", "http://"),
+            "http://localhost:3000",
+            "http://app.localhost"
+        ];
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            console.log(`[CORS Blocked] Origin: ${origin}, Allowed: ${allowedOrigins.join(", ")}`);
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "Cache-Control",
+        "Pragma",
+        "x-tenant-id",
+        "x-user-profile"
+    ],
+});
+app.use((req, res, next) => {
+    // Configurações de CORS permissivas para webchat e versionamento
+    // Permitir que /webchat e /api/webchat passem sem o CORS restrito (protectedRoutesCors)
+    // MAS, rotas como /webchat/version (que são internas/monitoramento) devem passar pelo CORS restrito
+    // para garantir que headers corretos (Origin) sejam retornados em vez de * ou nada.
+    const isWebchat = req.url.startsWith("/webchat") || req.url.startsWith("/api/webchat");
+    const isVersionCheck = req.url.includes("/version");
+    if (isWebchat && !isVersionCheck) {
+        return next();
     }
-}));
+    protectedRoutesCors(req, res, next);
+});
+const pluginRoutes_1 = __importDefault(require("./routes/pluginRoutes")); // Import plugin routes
+// ... imports ...
+// MOUNT PLUGIN ROUTES BEFORE BODY PARSER
+// This ensures http-proxy-middleware receives the raw request stream
+app.use(pluginRoutes_1.default);
 app.use((0, cookie_parser_1.default)());
 app.use(express_1.default.json());
 app.use(Sentry.Handlers.requestHandler());

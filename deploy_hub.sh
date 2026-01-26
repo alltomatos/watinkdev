@@ -47,22 +47,44 @@ deploy_service() {
   echo "--------------------------------------"
 }
 
+# ... (Keep previous functions get_version and deploy_service) ...
+
+SERVICE=$1
+
+if [ -z "$SERVICE" ]; then
+  echo "Usage: ./deploy_hub.sh <service_name|all>"
+  echo "Services: backend, frontend, engine, plugin-manager, plugin-smtp, engine-webchat"
+  exit 1
+fi
+
 # Backend
-deploy_service "Backend" "backend" "watink/backend" "docker-stack.yml" "backend"
+if [ "$SERVICE" == "backend" ] || [ "$SERVICE" == "all" ]; then
+  deploy_service "Backend" "backend" "watink/backend" "docker-stack.yml" "backend"
+fi
 
 # Frontend
-deploy_service "Frontend" "frontend" "watink/frontend" "docker-stack.yml" "frontend"
+if [ "$SERVICE" == "frontend" ] || [ "$SERVICE" == "all" ]; then
+  deploy_service "Frontend" "frontend" "watink/frontend" "docker-stack.yml" "frontend"
+fi
 
 # Engine (Standard)
-deploy_service "Engine (Standard)" "engine-standard" "watink/engine" "docker-stack.yml" "whaileys-engine"
+if [ "$SERVICE" == "engine" ] || [ "$SERVICE" == "all" ]; then
+  deploy_service "Engine (Standard)" "engine-standard" "watink/engine" "docker-stack.yml" "whaileys-engine"
+fi
 
 # Plugin Manager
-deploy_service "Plugin Manager" "plugin-manager" "watink/plugin-manager" "docker-plugin.yml" "plugin-manager"
+if [ "$SERVICE" == "plugin-manager" ] || [ "$SERVICE" == "all" ]; then
+  deploy_service "Plugin Manager" "plugin-manager" "watink/plugin-manager" "docker-plugin.yml" "plugin-manager"
+fi
 
 # Plugin SMTP
-deploy_service "Plugin SMTP" "plugins/watink-smtp-go" "watink/plugin-smtp" "docker-plugin.yml" "plugin-smtp"
+if [ "$SERVICE" == "plugin-smtp" ] || [ "$SERVICE" == "all" ]; then
+  deploy_service "Plugin SMTP" "plugins/watink-smtp-go" "watink/plugin-smtp" "docker-plugin.yml" "plugin-smtp"
+fi
 
 # Engine Webchat
-deploy_service "Engine Webchat" "engine-webchat" "watink/engine-webchat" "docker-plugin.yml" "engine-webchat"
+if [ "$SERVICE" == "engine-webchat" ] || [ "$SERVICE" == "all" ]; then
+  deploy_service "Engine Webchat" "engine-webchat" "watink/engine-webchat" "docker-plugin.yml" "engine-webchat"
+fi
 
-echo "✅ All containers pushed successfully!"
+echo "✅ Selected containers pushed successfully!"

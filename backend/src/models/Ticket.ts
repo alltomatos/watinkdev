@@ -29,6 +29,12 @@ class Ticket extends Model<Ticket> {
   @Column
   id: number;
 
+  @Column({
+    type: DataType.UUID,
+    defaultValue: DataType.UUIDV4
+  })
+  uuid: string;
+
   @Column({ defaultValue: "pending" })
   status: string;
 

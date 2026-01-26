@@ -28,6 +28,10 @@ const RestartWhatsAppSession = (whatsapp) => __awaiter(void 0, void 0, void 0, f
         action: "update",
         session: whatsapp
     });
+    if (whatsapp.type === "webchat") {
+        logger_1.logger.info(`RestartWhatsAppSession: Skipping engine command for Webchat session ${whatsapp.id}`);
+        return;
+    }
     try {
         const command = {
             id: (0, uuid_1.v4)(),

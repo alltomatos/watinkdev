@@ -30,6 +30,22 @@ const messages = {
           register: "Não tem um conta? Cadastre-se!",
         },
       },
+      resetPassword: {
+        title: "Redefinir Senha",
+        form: {
+          password: "Nova Senha",
+          confirmPassword: "Confirmar Senha"
+        },
+        buttons: {
+          submit: "Redefinir",
+          login: "Voltar para Login"
+        },
+        success: "Senha redefinida com sucesso!",
+        error: {
+          mismatch: "As senhas não conferem",
+          failed: "Falha ao redefinir a senha"
+        }
+      },
       auth: {
         toasts: {
           success: "Login efetuado com sucesso!",
@@ -40,6 +56,22 @@ const messages = {
           perDay: {
             title: "Tickets hoje: ",
           },
+        },
+        resetPassword: {
+          title: "Redefinir Senha",
+          form: {
+            password: "Nova Senha",
+            confirmPassword: "Confirmar Senha"
+          },
+          buttons: {
+            submit: "Redefinir",
+            login: "Voltar para Login"
+          },
+          success: "Senha redefinida com sucesso!",
+          error: {
+            mismatch: "As senhas não conferem",
+            failed: "Falha ao redefinir a senha"
+          }
         },
         messages: {
           inAttendance: {
@@ -285,6 +317,18 @@ const messages = {
           okAdd: "Adicionar",
           okEdit: "Salvar",
           cancel: "Cancelar",
+          deactivate: "Desativar",
+          activate: "Ativar",
+          resendCredentials: "Re-enviar Credenciais",
+          sendResetPassword: "Enviar Redefinição de Senha",
+          manualVerify: "Verificar Manualmente",
+        },
+        toasts: {
+          activated: "Usuário ativado com sucesso!",
+          deactivated: "Usuário desativado com sucesso!",
+          emailResent: "Credenciais reenviadas com sucesso!",
+          resetEmailSent: "E-mail de redefinição enviado com sucesso!",
+          emailVerified: "E-mail verificado manualmente!",
         },
         success: "Usuário salvo com sucesso.",
       },
@@ -426,12 +470,17 @@ const messages = {
         table: {
           name: "Nome",
           email: "Email",
+          emailVerified: "E-mail Verificado",
           profile: "Perfil",
           whatsapp: "Conexão Padrão",
           actions: "Ações",
         },
         buttons: {
           add: "Adicionar usuário",
+        },
+        status: {
+          verified: "Verificado",
+          pending: "Pendente",
         },
         toasts: {
           deleted: "Usuário excluído com sucesso.",
@@ -440,6 +489,8 @@ const messages = {
           deleteTitle: "Excluir",
           deleteMessage:
             "Todos os dados do usuário serão perdidos. Os tickets abertos deste usuário serão movidos para a fila.",
+          warning: "Esta ação não pode ser revertida.",
+          confirmCheckbox: "Confirmo que desejo deletar este usuário."
         },
       },
       groups: {
@@ -681,6 +732,8 @@ const messages = {
           "Não foi possível baixar mídia do WhatsApp. Verifique a página de conexões.",
         ERR_INVALID_CREDENTIALS:
           "Erro de autenticação. Por favor, tente novamente.",
+        ERR_USER_DISABLED:
+          "Sua conta está desativada. Entre em contato com o administrador.",
         ERR_SENDING_WAPP_MSG:
           "Erro ao enviar mensagem do WhatsApp. Verifique a página de conexões.",
         ERR_DELETE_WAPP_MSG: "Não foi possível excluir a mensagem do WhatsApp.",

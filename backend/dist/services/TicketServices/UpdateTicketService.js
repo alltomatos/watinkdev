@@ -15,13 +15,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const CheckContactOpenTickets_1 = __importDefault(require("../../helpers/CheckContactOpenTickets"));
 const SetTicketMessagesAsRead_1 = __importDefault(require("../../helpers/SetTicketMessagesAsRead"));
 const socket_1 = require("../../libs/socket");
+const Contact_1 = __importDefault(require("../../models/Contact"));
+const Step_1 = __importDefault(require("../../models/Step"));
 const Setting_1 = __importDefault(require("../../models/Setting"));
 const ShowTicketService_1 = __importDefault(require("./ShowTicketService"));
 const EmbeddingService_1 = __importDefault(require("../AIServices/EmbeddingService"));
 const logger_1 = require("../../utils/logger");
 const UpdateTicketService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ ticketData, ticketId }) {
     var _b, _c;
-    const { status, userId, queueId, whatsappId } = ticketData;
+    const { status, userId, queueId, whatsappId, stepId } = ticketData;
     const ticket = yield (0, ShowTicketService_1.default)(ticketId);
     yield (0, SetTicketMessagesAsRead_1.default)(ticket);
     if (whatsappId && ticket.whatsappId !== whatsappId) {
@@ -29,14 +31,21 @@ const UpdateTicketService = (_a) => __awaiter(void 0, [_a], void 0, function* ({
     }
     const oldStatus = ticket.status;
     const oldUserId = (_b = ticket.user) === null || _b === void 0 ? void 0 : _b.id;
+    const oldStepId = ticket.stepId;
     if (oldStatus === "closed") {
         yield (0, CheckContactOpenTickets_1.default)(ticket.contact.id, ticket.whatsappId);
     }
-    yield ticket.update({
-        status,
-        queueId,
-        userId
-    });
+    // Build update object
+    const updateData = {};
+    if (status !== undefined)
+        updateData.status = status;
+    if (queueId !== undefined)
+        updateData.queueId = queueId;
+    if (userId !== undefined)
+        updateData.userId = userId;
+    if (stepId !== undefined)
+        updateData.stepId = stepId;
+    yield ticket.update(updateData);
     if (whatsappId) {
         yield ticket.update({
             whatsappId
@@ -57,6 +66,26 @@ const UpdateTicketService = (_a) => __awaiter(void 0, [_a], void 0, function* ({
         action: "update",
         ticket
     });
+    // TRIGGER: Wallet binding when moving to a binding step
+    if (stepId !== undefined && stepId !== oldStepId && userId) {
+        (() => __awaiter(void 0, void 0, void 0, function* () {
+            try {
+                const newStep = yield Step_1.default.findByPk(stepId);
+                if (newStep === null || newStep === void 0 ? void 0 : newStep.isBindingStep) {
+                    // Check if contact already has a wallet owner
+                    const contact = yield Contact_1.default.findByPk(ticket.contactId);
+                    if (contact && !contact.walletUserId) {
+                        // Bind contact to the user who moved the ticket
+                        yield contact.update({ walletUserId: userId });
+                        logger_1.logger.info(`[WalletBinding] Contact ${contact.id} bound to user ${userId} via step "${newStep.name}"`);
+                    }
+                }
+            }
+            catch (error) {
+                logger_1.logger.error(`Error in wallet binding trigger for ticket #${ticket.id}:`, error);
+            }
+        }))();
+    }
     // TRIGGER: Process embeddings when ticket is closed (async, non-blocking)
     if (status === "closed" && oldStatus !== "closed" && !ticket.isGroup) {
         // Run async to not block the response

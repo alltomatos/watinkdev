@@ -26,12 +26,12 @@ pluginRoutes.use("/plugins", isAuth_1.default, (0, http_proxy_middleware_1.creat
                 proxyReq.setHeader("x-user-profile", profile.toString());
             }
         }
-        catch (_) {
-            // no-op
+        catch (err) {
+            console.error("Error in onProxyReq:", err);
         }
     },
     onError: (err, req, res) => {
-        console.error("Proxy Error:", err);
+        console.error("[PluginProxy] Proxy Error:", err);
         res.status(502).json({ error: "Plugin Manager Unavailable" });
     }
 }));

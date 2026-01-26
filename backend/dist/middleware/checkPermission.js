@@ -18,13 +18,13 @@ const Group_1 = __importDefault(require("../models/Group"));
 const Permission_1 = __importDefault(require("../models/Permission"));
 const checkPermission = (permission) => {
     return (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c;
+        var _a, _b;
         const { id } = req.user;
         const user = yield User_1.default.findByPk(id, {
             include: [
                 {
                     model: Group_1.default,
-                    as: "group",
+                    as: "groups",
                     include: [{ model: Permission_1.default, as: "permissions" }]
                 },
                 {
@@ -40,8 +40,8 @@ const checkPermission = (permission) => {
         if (user.profile === "admin" || user.profile === "superadmin") {
             return next();
         }
-        const groupPermissions = ((_b = (_a = user.group) === null || _a === void 0 ? void 0 : _a.permissions) === null || _b === void 0 ? void 0 : _b.map(p => p.name)) || [];
-        const individualPermissions = ((_c = user.permissions) === null || _c === void 0 ? void 0 : _c.map(p => p.name)) || [];
+        const groupPermissions = ((_a = user.groups) === null || _a === void 0 ? void 0 : _a.flatMap(g => { var _a; return (_a = g.permissions) === null || _a === void 0 ? void 0 : _a.map(p => p.name); })) || [];
+        const individualPermissions = ((_b = user.permissions) === null || _b === void 0 ? void 0 : _b.map(p => p.name)) || [];
         // Merge permissions
         const allPermissions = [...new Set([...groupPermissions, ...individualPermissions])];
         if (!allPermissions.includes(permission)) {

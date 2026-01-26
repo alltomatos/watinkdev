@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -37,6 +46,11 @@ const Protocol_1 = __importDefault(require("../models/Protocol"));
 const ProtocolHistory_1 = __importDefault(require("../models/ProtocolHistory"));
 const ProtocolAttachment_1 = __importDefault(require("../models/ProtocolAttachment"));
 const ConversationEmbedding_1 = __importDefault(require("../models/ConversationEmbedding"));
+const Plugin_1 = __importDefault(require("../models/Plugin"));
+const PluginInstallation_1 = __importDefault(require("../models/PluginInstallation"));
+const TenantSmtpSettings_1 = __importDefault(require("../models/TenantSmtpSettings"));
+const Step_1 = __importDefault(require("../models/Step"));
+const EmailTemplate_1 = __importDefault(require("../models/EmailTemplate"));
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
 const sequelize = new sequelize_typescript_1.Sequelize(dbConfig);
@@ -73,7 +87,40 @@ const models = [
     Protocol_1.default,
     ProtocolHistory_1.default,
     ProtocolAttachment_1.default,
-    ConversationEmbedding_1.default
+    ConversationEmbedding_1.default,
+    TenantSmtpSettings_1.default,
+    Plugin_1.default,
+    PluginInstallation_1.default,
+    Step_1.default,
+    EmailTemplate_1.default
 ];
 sequelize.addModels(models);
+sequelize.addHook("beforeFind", (options) => __awaiter(void 0, void 0, void 0, function* () {
+    if (options.tenantId && options.transaction) {
+        yield sequelize.query(`SET app.current_tenant = '${options.tenantId}'`, {
+            transaction: options.transaction
+        });
+    }
+}));
+sequelize.addHook("beforeCreate", (instance, options) => __awaiter(void 0, void 0, void 0, function* () {
+    if (instance.tenantId && options.transaction) {
+        yield sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
+            transaction: options.transaction
+        });
+    }
+}));
+sequelize.addHook("beforeUpdate", (instance, options) => __awaiter(void 0, void 0, void 0, function* () {
+    if (instance.tenantId && options.transaction) {
+        yield sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
+            transaction: options.transaction
+        });
+    }
+}));
+sequelize.addHook("beforeDestroy", (instance, options) => __awaiter(void 0, void 0, void 0, function* () {
+    if (instance.tenantId && options.transaction) {
+        yield sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
+            transaction: options.transaction
+        });
+    }
+}));
 exports.default = sequelize;

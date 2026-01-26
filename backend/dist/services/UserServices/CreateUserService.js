@@ -50,7 +50,12 @@ const AppError_1 = __importDefault(require("../../errors/AppError"));
 const SerializeUser_1 = require("../../helpers/SerializeUser");
 const User_1 = __importDefault(require("../../models/User"));
 const Permission_1 = __importDefault(require("../../models/Permission"));
-const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ email, password, name, queueIds = [], profile = "admin", whatsappId }) {
+const Tenant_1 = __importDefault(require("../../models/Tenant"));
+const PluginInstallation_1 = __importDefault(require("../../models/PluginInstallation"));
+const Plugin_1 = __importDefault(require("../../models/Plugin"));
+const sequelize_1 = require("sequelize");
+const SendPasswordResetEmailService_1 = __importDefault(require("./SendPasswordResetEmailService"));
+const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ email, password, name, queueIds = [], profile = "admin", whatsappId, groupIds = [], tenantId }) {
     const schema = Yup.object().shape({
         name: Yup.string().required().min(2),
         email: Yup.string()
@@ -72,12 +77,60 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
     catch (err) {
         throw new AppError_1.default(err.message);
     }
+    /*
+     * Check if SMTP Plugin is active.
+     * If NOT active, we simply create the user as verified and don't send the email.
+     * "if the smtp plugin is not active the system must behave as if they do not exist"
+     */
+    let emailVerified = false;
+    if (tenantId) {
+        const smtpPlugin = yield Plugin_1.default.findOne({
+            where: {
+                slug: {
+                    [sequelize_1.Op.like]: "%smtp%"
+                }
+            }
+        });
+        if (smtpPlugin) {
+            const pluginInstallation = yield PluginInstallation_1.default.findOne({
+                where: {
+                    tenantId,
+                    pluginId: smtpPlugin.id,
+                    status: "active"
+                }
+            });
+            if (!pluginInstallation) {
+                emailVerified = true;
+            }
+        }
+        else {
+            emailVerified = true;
+        }
+    }
+    else {
+        // If no tenant (e.g. superadmin creation?), default behavior?
+        // Usually superadmin is created seeded.
+        // Use default false or true? If no SMTP context, maybe true?
+        // Let's assume true for safety if no tenant context exists for SMTP.
+        emailVerified = true;
+    }
+    if (process.env.TENANTS === "true" && tenantId) {
+        const tenant = yield Tenant_1.default.findOne({ where: { id: tenantId } });
+        if (tenant) {
+            const userCount = yield User_1.default.count({ where: { tenantId } });
+            if (userCount >= tenant.maxUsers) {
+                throw new AppError_1.default("ERR_MAX_USERS_REACHED", 403);
+            }
+        }
+    }
     const user = yield User_1.default.create({
         email,
         password,
         name,
         profile,
-        whatsappId: whatsappId ? whatsappId : null
+        whatsappId: whatsappId ? whatsappId : null,
+        tenantId,
+        emailVerified
     }, { include: ["queues", "whatsapp"] });
     if (profile === "superadmin") {
         const allPermissions = yield Permission_1.default.findAll();
@@ -85,6 +138,20 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
     }
     else {
         yield user.$set("queues", queueIds);
+        yield user.$set("groups", groupIds);
+    }
+    // Send Welcome Email (Async) via Password Reset Link
+    // Send Welcome Email (Async) via Password Reset Link ONLY if verify is needed
+    if (tenantId && !emailVerified) {
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        // We don't await here to not block the response, or we can await if we want to ensure email is sent.
+        // Given it uses RabbitMQ inside service, it should be fast.
+        try {
+            yield (0, SendPasswordResetEmailService_1.default)(email, frontendUrl);
+        }
+        catch (err) {
+            console.error("Failed to send welcome/reset email", err);
+        }
     }
     yield user.reload();
     return (0, SerializeUser_1.SerializeUser)(user);

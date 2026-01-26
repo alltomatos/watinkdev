@@ -32,7 +32,7 @@ const isAuth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* (
         req.user = {
             id,
             profile,
-            tenantId: user.tenantId
+            tenantId: user.tenantId.toString()
         };
     }
     catch (err) {

@@ -320,7 +320,8 @@ const handleMessageReceived = (payload, tenantId) => __awaiter(void 0, void 0, v
     else {
         // Individual Contact
         const isLid = message.from.includes("@lid");
-        const number = message.from.replace(/\D/g, "");
+        const isWebchat = message.from.startsWith("webchat-");
+        const number = isWebchat ? message.from : message.from.replace(/\D/g, "");
         const providedLid = message.senderLid;
         const contactData = {
             number: providedLid ? number : (isLid ? null : (number || null)),

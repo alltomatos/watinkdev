@@ -21,6 +21,7 @@ const RabbitMQService_1 = __importDefault(require("./services/RabbitMQService"))
 const StartAllWhatsAppsSessions_1 = require("./services/WbotServices/StartAllWhatsAppsSessions");
 const CommandListener_1 = require("./services/WbotServices/CommandListener");
 const FlowWorkerService_1 = __importDefault(require("./services/FlowServices/FlowWorkerService"));
+const TenantProvisioningWorker_1 = require("./services/SaasServices/TenantProvisioningWorker");
 const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
     yield RabbitMQService_1.default.connect();
     const server = app_1.default.listen(process.env.PORT, () => {
@@ -31,7 +32,11 @@ const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
     yield (0, CommandListener_1.CommandListener)();
     // Initialize Flow Engine Worker (Consumer)
     yield FlowWorkerService_1.default.start();
-    (0, StartAllWhatsAppsSessions_1.StartAllWhatsAppsSessions)();
+    // Initialize SaaS Tenant Provisioning Worker
+    yield (0, TenantProvisioningWorker_1.TenantProvisioningWorker)();
+    (0, StartAllWhatsAppsSessions_1.StartAllWhatsAppsSessions)().catch(err => {
+        logger_1.logger.error(`Error starting WhatsApp sessions: ${err}`);
+    });
     (0, http_graceful_shutdown_1.default)(server);
 });
 startServer();

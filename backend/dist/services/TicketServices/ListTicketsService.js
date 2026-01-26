@@ -20,10 +20,11 @@ const Message_1 = __importDefault(require("../../models/Message"));
 const Queue_1 = __importDefault(require("../../models/Queue"));
 const ShowUserService_1 = __importDefault(require("../UserServices/ShowUserService"));
 const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
-const ListTicketsService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ searchParam = "", pageNumber = "1", queueIds, status, date, showAll, userId, withUnreadMessages, isGroup }) {
+const ListTicketsService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ searchParam = "", pageNumber = "1", queueIds, status, date, showAll, userId, withUnreadMessages, isGroup, tenantId }) {
     let whereCondition = {
         [sequelize_1.Op.or]: [{ userId }, { status: "pending" }],
-        queueId: { [sequelize_1.Op.or]: [queueIds, null] }
+        queueId: { [sequelize_1.Op.or]: [queueIds, null] },
+        tenantId
     };
     let includeCondition;
     includeCondition = [

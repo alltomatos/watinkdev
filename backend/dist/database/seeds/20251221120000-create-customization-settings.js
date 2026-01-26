@@ -11,53 +11,54 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 module.exports = {
     up: (queryInterface) => __awaiter(void 0, void 0, void 0, function* () {
-        // Check if systemTitle exists
-        const titleExists = yield queryInterface.sequelize.query(`SELECT * FROM "Settings" WHERE key = 'systemTitle'`);
-        if (titleExists[0].length === 0) {
-            yield queryInterface.bulkInsert("Settings", [
-                {
-                    key: "systemTitle",
-                    value: "Watink",
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                }
-            ], {});
+        let tenants = [];
+        try {
+            tenants = (yield queryInterface.sequelize.query('SELECT id FROM "Tenants"', {
+                type: "SELECT"
+            }));
         }
-        // Check if systemLogo exists
-        const logoExists = yield queryInterface.sequelize.query(`SELECT * FROM "Settings" WHERE key = 'systemLogo'`);
-        if (logoExists[0].length === 0) {
-            yield queryInterface.bulkInsert("Settings", [
-                {
-                    key: "systemLogo",
-                    value: "",
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                }
-            ], {});
+        catch (e) {
+            console.warn("Table Tenants query failed");
         }
-        // Check if systemLogoEnabled exists
-        const logoEnabledExists = yield queryInterface.sequelize.query(`SELECT * FROM "Settings" WHERE key = 'systemLogoEnabled'`);
-        if (logoEnabledExists[0].length === 0) {
-            yield queryInterface.bulkInsert("Settings", [
-                {
-                    key: "systemLogoEnabled",
-                    value: "true",
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                }
-            ], {});
+        if (tenants.length === 0) {
+            // Fallback for clean install if previous seed worked but return format differs?
+            // Or maybe running standalone?
+            // Let's try raw query result inspection if type is issue
+            const rawTenants = yield queryInterface.sequelize.query('SELECT id FROM "Tenants"');
+            if (rawTenants[0] && rawTenants[0].length > 0) {
+                tenants = rawTenants[0];
+            }
         }
-        // Check if systemFavicon exists
-        const faviconExists = yield queryInterface.sequelize.query(`SELECT * FROM "Settings" WHERE key = 'systemFavicon'`);
-        if (faviconExists[0].length === 0) {
-            yield queryInterface.bulkInsert("Settings", [
-                {
-                    key: "systemFavicon",
-                    value: "",
-                    createdAt: new Date(),
-                    updatedAt: new Date()
+        if (tenants.length === 0) {
+            console.warn("Skipping Customization Settings seed: No tenants found.");
+            return;
+        }
+        const settingsKeys = ["systemTitle", "systemLogo", "systemLogoEnabled", "systemFavicon"];
+        const defaults = {
+            "systemTitle": "Watink",
+            "systemLogo": "",
+            "systemLogoEnabled": "true",
+            "systemFavicon": ""
+        };
+        const settingsToInsert = [];
+        for (const tenant of tenants) {
+            const tenantId = tenant.id;
+            for (const key of settingsKeys) {
+                // Check existence for THIS tenant
+                const existing = yield queryInterface.sequelize.query(`SELECT * FROM "Settings" WHERE key = '${key}' AND "tenantId" = '${tenantId}'`);
+                if (existing[0].length === 0) {
+                    settingsToInsert.push({
+                        key,
+                        value: defaults[key],
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        tenantId
+                    });
                 }
-            ], {});
+            }
+        }
+        if (settingsToInsert.length > 0) {
+            yield queryInterface.bulkInsert("Settings", settingsToInsert, {});
         }
     }),
     down: (queryInterface) => __awaiter(void 0, void 0, void 0, function* () {

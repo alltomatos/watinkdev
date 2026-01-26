@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
-	"os" // Added missing import
+	"os"
+	"strconv"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -40,6 +41,14 @@ func main() {
 		rabbitURL = "amqp://guest:guest@localhost:5672/"
 	}
 
+	concurrencyLimit := 50
+	if env := os.Getenv("SMTP_CONCURRENCY"); env != "" {
+		if val, err := strconv.Atoi(env); err == nil && val > 0 {
+			concurrencyLimit = val
+		}
+	}
+	log.Printf("SMTP Concurrency Limit: %d", concurrencyLimit)
+
 	queueName := "smtp.email.queue"
 	exchangeName := "wbot.commands"
 	routingKey := "smtp.send"
@@ -65,6 +74,16 @@ func main() {
 		log.Fatal(err)
 	}
 	defer ch.Close()
+
+	// Set QoS
+	err = ch.Qos(
+		concurrencyLimit, // prefetch count
+		0,                // prefetch size
+		false,            // global
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Declare Exchange
 	err = ch.ExchangeDeclare(
@@ -120,48 +139,61 @@ func main() {
 
 	forever := make(chan bool)
 
+	// Semaphore to limit concurrency
+	sem := make(chan struct{}, concurrencyLimit)
+
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message with routing key: %s", d.RoutingKey)
+			sem <- struct{}{} // Acquire semaphore
 
-			var envelope Envelope
-			if err := json.Unmarshal(d.Body, &envelope); err != nil {
-				log.Printf("Error decoding envelope: %v", err)
-				d.Nack(false, false) // Reject
-				continue
-			}
+			go func(d amqp.Delivery) {
+				defer func() { <-sem }() // Release semaphore
 
-			if envelope.Type != "smtp.send" {
-				log.Printf("Ignoring message type: %s", envelope.Type)
-				d.Ack(false)
-				continue
-			}
+				log.Printf("Received a message with routing key: %s", d.RoutingKey)
 
-			var payload SmtpPayload
-			if err := json.Unmarshal(envelope.Payload, &payload); err != nil {
-				log.Printf("Error decoding payload: %v", err)
-				d.Nack(false, false)
-				continue
-			}
+				var envelope Envelope
+				if err := json.Unmarshal(d.Body, &envelope); err != nil {
+					log.Printf("Error decoding envelope: %v", err)
+					d.Nack(false, false) // Reject
+					return
+				}
 
-			err := sendEmail(payload)
-			if err != nil {
-				log.Printf("Failed to send email: %v", err)
-				// Put back in queue? Or discard?
-				// For now, let's requeue once or just log and ack/nack depending on error logic.
-				// Assuming critical failure (auth) -> Nack false (discard/DLQ if setup).
-				// But for test purposes, if we fail, we probably want to inspect logs.
-				// Let's Nack without requeue to avoid loop if config is bad.
-				d.Nack(false, false)
-			} else {
-				log.Printf("Email sent successfully to %s", payload.To)
-				d.Ack(false)
-			}
+				if envelope.Type != "smtp.send" {
+					log.Printf("Ignoring message type: %s", envelope.Type)
+					d.Ack(false)
+					return
+				}
+
+				var payload SmtpPayload
+				if err := json.Unmarshal(envelope.Payload, &payload); err != nil {
+					log.Printf("Error decoding payload: %v", err)
+					d.Nack(false, false)
+					return
+				}
+
+				err := sendEmail(payload)
+				if err != nil {
+					log.Printf("Failed to send email: %v", err)
+					// Put back in queue? Or discard?
+					// For now, let's requeue once or just log and ack/nack depending on error logic.
+					// Assuming critical failure (auth) -> Nack false (discard/DLQ if setup).
+					// But for test purposes, if we fail, we probably want to inspect logs.
+					// Let's Nack without requeue to avoid loop if config is bad.
+					d.Nack(false, false)
+				} else {
+					log.Printf("Email sent successfully to %s", payload.To)
+					d.Ack(false)
+				}
+			}(d)
 		}
+		// If the loop exits, it means the channel was closed (connection lost)
+		log.Printf("RabbitMQ channel closed. Exiting...")
+		forever <- true
 	}()
 
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 	<-forever
+	log.Printf("Shutting down...")
 }
 
 func sendEmail(p SmtpPayload) error {
@@ -185,20 +217,23 @@ func sendEmail(p SmtpPayload) error {
 	message += "\r\n" + p.Html // Using HTML body
 
 	// Handle TLS/SSL
-	// net/smtp SendMail uses STARTTLS if supported and port is not 465 (usually).
-	// For implicit SSL (465), we need explicit TLS connection.
+	// Rule: Port 465 is typically Implicit SSL/TLS.
+	// Ports 587 and 25 are typically Explicit SSL/TLS (STARTTLS).
+	// If p.Secure is true, we want to ensure encryption is used.
 
-	if p.Port == 465 || p.Secure {
-		return sendMailTLS(addr, auth, p.EmailFrom, []string{p.To}, []byte(message), p.Host)
+	if p.Port == 465 {
+		// Implicit SSL/TLS (Wrapper)
+		return sendMailImplicitTLS(addr, auth, p.EmailFrom, []string{p.To}, []byte(message), p.Host)
 	}
 
-	return smtp.SendMail(addr, auth, p.EmailFrom, []string{p.To}, []byte(message))
+	// Explicit SSL/TLS (STARTTLS) for ports 587, 25, etc.
+	return sendMailExplicitTLS(addr, auth, p.EmailFrom, []string{p.To}, []byte(message), p.Host, p.Secure)
 }
 
-func sendMailTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte, host string) error {
-	// TLS config
+// sendMailImplicitTLS connects using tls.Dial (typically for port 465)
+func sendMailImplicitTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte, host string) error {
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true, // Allow self-signed for testing, ideally strictly validated
+		InsecureSkipVerify: true,
 		ServerName:         host,
 	}
 
@@ -214,19 +249,50 @@ func sendMailTLS(addr string, auth smtp.Auth, from string, to []string, msg []by
 	}
 	defer c.Close()
 
+	return performSmtpTransaction(c, auth, from, to, msg)
+}
+
+// sendMailExplicitTLS connects using plain tcp, then upgrades via STARTTLS
+func sendMailExplicitTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte, host string, requireSecure bool) error {
+	// Connect to the remote SMTP server.
+	c, err := smtp.Dial(addr)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	// Try to start TLS
+	if ok, _ := c.Extension("STARTTLS"); ok {
+		config := &tls.Config{
+			InsecureSkipVerify: true,
+			ServerName:         host,
+		}
+		if err = c.StartTLS(config); err != nil {
+			return fmt.Errorf("failed to start TLS: %v", err)
+		}
+	} else if requireSecure {
+		// If secure was requested but STARTTLS is not available, fail.
+		return fmt.Errorf("server does not support STARTTLS but secure connection was requested")
+	}
+
+	return performSmtpTransaction(c, auth, from, to, msg)
+}
+
+// performSmtpTransaction handles Auth, Mail, Rcpt, Data
+func performSmtpTransaction(c *smtp.Client, auth smtp.Auth, from string, to []string, msg []byte) error {
 	if auth != nil {
 		if ok, _ := c.Extension("AUTH"); ok {
-			if err = c.Auth(auth); err != nil {
+			if err := c.Auth(auth); err != nil {
 				return err
 			}
 		}
 	}
 
-	if err = c.Mail(from); err != nil {
+	if err := c.Mail(from); err != nil {
 		return err
 	}
 	for _, addr := range to {
-		if err = c.Rcpt(addr); err != nil {
+		if err := c.Rcpt(addr); err != nil {
 			return err
 		}
 	}

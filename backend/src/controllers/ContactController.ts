@@ -29,10 +29,12 @@ interface ExtraInfo {
   name: string;
   value: string;
 }
-interface ContactData {
+
+export interface ContactData {
   name: string;
   number: string;
   email?: string;
+  walletUserId?: number | null;
   extraInfo?: ExtraInfo[];
 }
 
@@ -62,7 +64,7 @@ export const getContact = async (
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { tenantId } = req.user as any;
+  const { tenantId } = req.user;
   console.log(`[ContactController.store] Creating contact for user: ${JSON.stringify(req.user)}, tenantId: ${tenantId}, type: ${typeof tenantId}`);
 
   const newContact: ContactData = req.body;
@@ -86,6 +88,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   let name = newContact.name;
   let number = validNumber;
   let email = newContact.email;
+  let walletUserId = newContact.walletUserId;
   let extraInfo = newContact.extraInfo;
 
   try {
@@ -95,6 +98,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
       email,
       extraInfo,
       profilePicUrl,
+      walletUserId,
       tenantId,
       waitEnrichment: true
     });
@@ -172,7 +176,7 @@ export const remove = async (
 
 export const sync = async (req: Request, res: Response): Promise<Response> => {
   const { contactId } = req.params;
-  const { tenantId } = req.user as any;
+  const { tenantId } = req.user;
 
   try {
     const contact = await ShowContactService(contactId);
@@ -200,7 +204,7 @@ export const batchEnrich = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { tenantId } = req.user as any;
+  const { tenantId } = req.user;
 
   if (!tenantId) {
     throw new AppError("Tenant ID not found in request", 400);
@@ -223,7 +227,7 @@ export const importCsv = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { tenantId } = req.user as any;
+  const { tenantId } = req.user;
 
   if (!tenantId) {
     throw new AppError("Tenant ID not found in request", 400);

@@ -18,6 +18,7 @@ interface Request {
   withUnreadMessages?: string;
   queueIds: number[];
   isGroup?: string;
+  tenantId: string | number;
 }
 
 interface Response {
@@ -35,11 +36,13 @@ const ListTicketsService = async ({
   showAll,
   userId,
   withUnreadMessages,
-  isGroup
+  isGroup,
+  tenantId
 }: Request): Promise<Response> => {
   let whereCondition: Filterable["where"] = {
     [Op.or]: [{ userId }, { status: "pending" }],
-    queueId: { [Op.or]: [queueIds, null] }
+    queueId: { [Op.or]: [queueIds, null] },
+    tenantId
   };
 
   let includeCondition: Includeable[];

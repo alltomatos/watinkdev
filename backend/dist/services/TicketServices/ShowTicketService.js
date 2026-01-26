@@ -40,7 +40,7 @@ const ShowTicketService = (id) => __awaiter(void 0, void 0, void 0, function* ()
             {
                 model: Whatsapp_1.default,
                 as: "whatsapp",
-                attributes: ["name", "status"]
+                attributes: ["name", "status", "type"]
             }
         ]
     });

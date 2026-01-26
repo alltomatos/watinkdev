@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -9,6 +18,7 @@ const jsonwebtoken_1 = require("jsonwebtoken");
 const AppError_1 = __importDefault(require("../errors/AppError"));
 const logger_1 = require("../utils/logger");
 const auth_1 = __importDefault(require("../config/auth"));
+const UserOnlineService_1 = __importDefault(require("../services/UserServices/UserOnlineService"));
 let io;
 const initIO = (httpServer) => {
     io = new socket_io_1.Server(httpServer, {
@@ -17,11 +27,25 @@ const initIO = (httpServer) => {
                 callback(null, true);
             },
             credentials: true
-        }
+        },
+        allowEIO3: true
     });
-    io.on("connection", socket => {
-        const { token } = socket.handshake.query;
-        logger_1.logger.info(`[Socket Debug] Connection attempt. Token provided: ${token ? "YES" : "NO"}`);
+    io.on("connection", (socket) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b;
+        logger_1.logger.info("Socket Connection Attempt");
+        let { token } = socket.handshake.query;
+        if (!token && ((_a = socket.handshake.auth) === null || _a === void 0 ? void 0 : _a.token)) {
+            token = socket.handshake.auth.token;
+            logger_1.logger.info(`[Socket Debug] Token found in handshake.auth`);
+        }
+        if (!token && ((_b = socket.handshake.headers) === null || _b === void 0 ? void 0 : _b.authorization)) {
+            const authHeader = socket.handshake.headers.authorization;
+            if (authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+                logger_1.logger.info(`[Socket Debug] Token found in Authorization header`);
+            }
+        }
+        logger_1.logger.info(`[Socket Debug] Final Token provided: ${token ? "YES" : "NO"}`);
         let tokenData = null;
         try {
             tokenData = (0, jsonwebtoken_1.verify)(token, auth_1.default.secret);
@@ -38,7 +62,16 @@ const initIO = (httpServer) => {
             socket.disconnect();
             return io;
         }
-        logger_1.logger.info("Client Connected");
+        // Extract userId from token
+        const userId = tokenData === null || tokenData === void 0 ? void 0 : tokenData.id;
+        // Track user as online in Redis
+        if (userId) {
+            yield UserOnlineService_1.default.setUserOnline(userId, socket.id);
+            // Store userId in socket data for disconnect handler
+            socket.data = socket.data || {};
+            socket.data.userId = userId;
+        }
+        logger_1.logger.info(`Client Connected (userId: ${userId || "unknown"}, socketId: ${socket.id})`);
         socket.on("joinChatBox", (ticketId) => {
             logger_1.logger.info("A client joined a ticket channel");
             socket.join(ticketId);
@@ -55,11 +88,21 @@ const initIO = (httpServer) => {
             logger_1.logger.info("A client joined helpdesk kanban channel");
             socket.join("helpdesk-kanban");
         });
-        socket.on("disconnect", () => {
-            logger_1.logger.info("Client disconnected");
-        });
+        // Heartbeat event to refresh online status (optional client-side ping)
+        socket.on("heartbeat", () => __awaiter(void 0, void 0, void 0, function* () {
+            if (socket.data.userId) {
+                yield UserOnlineService_1.default.refreshUserOnline(socket.data.userId);
+            }
+        }));
+        socket.on("disconnect", () => __awaiter(void 0, void 0, void 0, function* () {
+            const disconnectedUserId = socket.data.userId;
+            if (disconnectedUserId) {
+                yield UserOnlineService_1.default.setUserOffline(disconnectedUserId, socket.id);
+            }
+            logger_1.logger.info(`Client disconnected (userId: ${disconnectedUserId || "unknown"}, socketId: ${socket.id})`);
+        }));
         return socket;
-    });
+    }));
     return io;
 };
 exports.initIO = initIO;

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadLoginImage = exports.uploadFavicon = exports.uploadLogo = exports.update = exports.getPublicSettings = exports.index = void 0;
+exports.uploadLoginImage = exports.uploadMobileLogo = exports.uploadFavicon = exports.uploadLogo = exports.update = exports.getPublicSettings = exports.index = void 0;
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const socket_1 = require("../libs/socket");
@@ -25,12 +25,23 @@ const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
     const { tenantId } = req.user;
     const settings = yield (0, ListSettingsService_1.default)({ tenantId });
-    return res.status(200).json(settings);
+    // Convert to plain object to inject virtual settings
+    const settingsList = Array.isArray(settings) ? settings.map((s) => (s.toJSON ? s.toJSON() : s)) : [];
+    if (process.env.TENANTS === "True" || process.env.TENANTS === "true") {
+        settingsList.push({
+            key: "allowTenantControl",
+            value: "true",
+            tenantId: tenantId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+    }
+    return res.status(200).json(settingsList);
 });
 exports.index = index;
 const getPublicSettings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const settings = yield (0, ListSettingsService_1.default)();
-    const publicKeys = ["systemLogo", "login_backgroundImage", "login_layout", "systemFavicon"];
+    const publicKeys = ["systemLogo", "login_backgroundImage", "login_layout", "systemFavicon", "userCreation", "mobileLogo"];
     const publicSettings = (settings || []).filter(s => publicKeys.includes(s.key));
     return res.status(200).json(publicSettings);
 });
@@ -122,6 +133,37 @@ const uploadFavicon = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     return res.status(200).json({ faviconUrl });
 });
 exports.uploadFavicon = uploadFavicon;
+const uploadMobileLogo = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
+        throw new AppError_1.default("ERR_NO_PERMISSION", 403);
+    }
+    if (!req.file) {
+        throw new AppError_1.default("ERR_NO_FILE_UPLOADED", 400);
+    }
+    const file = req.file;
+    const { tenantId } = req.user;
+    const publicDir = path_1.default.resolve(__dirname, "..", "..", "public");
+    if (!fs_1.default.existsSync(publicDir)) {
+        fs_1.default.mkdirSync(publicDir, { recursive: true });
+    }
+    const ext = path_1.default.extname(file.originalname);
+    const filename = `mobile-logo-${Date.now()}${ext}`;
+    const filepath = path_1.default.join(publicDir, filename);
+    fs_1.default.writeFileSync(filepath, file.buffer);
+    const mobileLogoUrl = `public/${filename}`;
+    const setting = yield (0, UpdateSettingService_1.default)({
+        key: "mobileLogo",
+        value: mobileLogoUrl,
+        tenantId
+    });
+    const io = (0, socket_1.getIO)();
+    io.emit("settings", {
+        action: "update",
+        setting
+    });
+    return res.status(200).json({ mobileLogoUrl });
+});
+exports.uploadMobileLogo = uploadMobileLogo;
 const uploadLoginImage = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
         throw new AppError_1.default("ERR_NO_PERMISSION", 403);

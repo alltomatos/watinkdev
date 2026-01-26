@@ -35,7 +35,8 @@ module.exports = {
                 pluginId: clientsPluginId,
                 status: "inactive", // Plugin comes disabled by default
                 installedAt: new Date(),
-                activatedAt: null
+                activatedAt: null,
+                updatedAt: new Date()
             }
         ]);
         console.log("Clientes plugin installed as INACTIVE for default tenant.");

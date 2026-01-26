@@ -19,6 +19,7 @@ const Queue_1 = __importDefault(require("./Queue"));
 const User_1 = __importDefault(require("./User"));
 const Whatsapp_1 = __importDefault(require("./Whatsapp"));
 const Tenant_1 = __importDefault(require("./Tenant"));
+const Step_1 = __importDefault(require("./Step"));
 let Ticket = class Ticket extends sequelize_typescript_1.Model {
 };
 __decorate([
@@ -27,6 +28,13 @@ __decorate([
     sequelize_typescript_1.Column,
     __metadata("design:type", Number)
 ], Ticket.prototype, "id", void 0);
+__decorate([
+    (0, sequelize_typescript_1.Column)({
+        type: sequelize_typescript_1.DataType.UUID,
+        defaultValue: sequelize_typescript_1.DataType.UUIDV4
+    }),
+    __metadata("design:type", String)
+], Ticket.prototype, "uuid", void 0);
 __decorate([
     (0, sequelize_typescript_1.Column)({ defaultValue: "pending" }),
     __metadata("design:type", String)
@@ -88,6 +96,16 @@ __decorate([
     (0, sequelize_typescript_1.BelongsTo)(() => Queue_1.default),
     __metadata("design:type", Queue_1.default)
 ], Ticket.prototype, "queue", void 0);
+__decorate([
+    (0, sequelize_typescript_1.ForeignKey)(() => Step_1.default),
+    (0, sequelize_typescript_1.AllowNull)(true),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Number)
+], Ticket.prototype, "stepId", void 0);
+__decorate([
+    (0, sequelize_typescript_1.BelongsTo)(() => Step_1.default),
+    __metadata("design:type", Step_1.default)
+], Ticket.prototype, "step", void 0);
 __decorate([
     (0, sequelize_typescript_1.HasMany)(() => Message_1.default),
     __metadata("design:type", Array)

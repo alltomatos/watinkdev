@@ -89,6 +89,7 @@ const PrivateRoutes = () => {
 };
 
 import PublicProtocol from "../pages/PublicProtocol";
+import ResetPassword from "../pages/ResetPassword/";
 
 const Routes = () => {
   return (
@@ -99,6 +100,7 @@ const Routes = () => {
             <Route exact path="/login" component={Login} />
             <Route exact path="/signup" component={Signup} />
             <Route exact path="/public/protocols/:token" component={PublicProtocol} isPublic />
+            <Route exact path="/reset-password/:token" component={ResetPassword} isPublic />
             <Route path="/" component={PrivateRoutes} isPrivate />
           </Switch>
           <ToastContainer autoClose={3000} />

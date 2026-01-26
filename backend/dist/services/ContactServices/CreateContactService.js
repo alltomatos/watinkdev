@@ -19,7 +19,7 @@ const uuid_1 = require("uuid");
 const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const logger_1 = require("../../utils/logger");
 const CreateOrUpdateContactService_1 = require("./CreateOrUpdateContactService");
-const CreateContactService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ name, number, email = "", extraInfo = [], tenantId, waitEnrichment = false // Default false to maintain backward compat unless requested
+const CreateContactService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ name, number, email = "", walletUserId, extraInfo = [], tenantId, waitEnrichment = false // Default false to maintain backward compat unless requested
  }) {
     if (!tenantId) {
         throw new AppError_1.default("Tenant ID is required for creating a contact.", 403);
@@ -34,6 +34,7 @@ const CreateContactService = (_a) => __awaiter(void 0, [_a], void 0, function* (
         name,
         number,
         email,
+        walletUserId,
         extraInfo,
         tenantId
     }, {

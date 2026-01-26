@@ -29,8 +29,27 @@ __decorate([
 __decorate([
     (0, sequelize_typescript_1.Default)("active"),
     sequelize_typescript_1.Column,
+    sequelize_typescript_1.Column,
     __metadata("design:type", String)
 ], Tenant.prototype, "status", void 0);
+__decorate([
+    sequelize_typescript_1.Column,
+    __metadata("design:type", String)
+], Tenant.prototype, "plan", void 0);
+__decorate([
+    sequelize_typescript_1.Column,
+    __metadata("design:type", String)
+], Tenant.prototype, "externalId", void 0);
+__decorate([
+    (0, sequelize_typescript_1.Default)(1),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Number)
+], Tenant.prototype, "maxUsers", void 0);
+__decorate([
+    (0, sequelize_typescript_1.Default)(1),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", Number)
+], Tenant.prototype, "maxConnections", void 0);
 __decorate([
     sequelize_typescript_1.Column,
     __metadata("design:type", Number)

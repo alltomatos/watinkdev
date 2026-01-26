@@ -63,7 +63,8 @@ const CreateOrUpdateContactService = (_a) => __awaiter(void 0, [_a], void 0, fun
     if (!tenantId) {
         throw new Error("Tenant ID is required for CreateOrUpdateContactService");
     }
-    const number = isGroup ? rawNumber : rawNumber === null || rawNumber === void 0 ? void 0 : rawNumber.replace(/[^0-9]/g, "");
+    const isWebchat = rawNumber === null || rawNumber === void 0 ? void 0 : rawNumber.startsWith("webchat-");
+    const number = isGroup || isWebchat ? rawNumber : rawNumber === null || rawNumber === void 0 ? void 0 : rawNumber.replace(/[^0-9]/g, "");
     const io = (0, socket_1.getIO)();
     let contact = null;
     const backendUrl = process.env.URL_BACKEND || process.env.BACKEND_URL || "http://localhost:8080";

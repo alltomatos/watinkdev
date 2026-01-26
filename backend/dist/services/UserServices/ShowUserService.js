@@ -26,14 +26,15 @@ const ShowUserService = (id) => __awaiter(void 0, void 0, void 0, function* () {
             "email",
             "profile",
             "tokenVersion",
-            "whatsappId"
+            "whatsappId",
+            "profileImage"
         ],
         include: [
             { model: Queue_1.default, as: "queues", attributes: ["id", "name", "color"] },
             { model: Whatsapp_1.default, as: "whatsapp", attributes: ["id", "name"] },
             {
                 model: Group_1.default,
-                as: "group",
+                as: "groups",
                 include: [{ model: Permission_1.default, as: "permissions", attributes: ["id", "name"] }]
             },
             { model: Permission_1.default, as: "permissions", attributes: ["id", "name"] }

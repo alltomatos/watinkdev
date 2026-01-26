@@ -23,12 +23,6 @@ module.exports = {
       SET "iconUrl" = '/public/assets/icons/ico-helpdesk.png'
       WHERE "slug" = 'helpdesk';
     `);
-        // Update 'whatsmeow' plugin
-        yield queryInterface.sequelize.query(`
-      UPDATE "Plugins"
-      SET "iconUrl" = '/public/assets/icons/ico-chat.png'
-      WHERE "slug" = 'whatsmeow';
-    `);
     }),
     down: (queryInterface) => __awaiter(void 0, void 0, void 0, function* () {
         // Revert to original URLs (optional, but good practice)
@@ -41,11 +35,6 @@ module.exports = {
       UPDATE "Plugins"
       SET "iconUrl" = 'https://plugins.watink.com/helpdesk/icon.png'
       WHERE "slug" = 'helpdesk';
-    `);
-        yield queryInterface.sequelize.query(`
-      UPDATE "Plugins"
-      SET "iconUrl" = 'https://plugins.watink.com/whatsmeow/icon.png'
-      WHERE "slug" = 'whatsmeow';
     `);
     })
 };

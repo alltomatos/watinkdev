@@ -35,6 +35,7 @@ __decorate([
 ], Setting.prototype, "updatedAt", void 0);
 __decorate([
     (0, sequelize_typescript_1.ForeignKey)(() => Tenant_1.default),
+    sequelize_typescript_1.PrimaryKey,
     (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.UUID),
     __metadata("design:type", Object)
 ], Setting.prototype, "tenantId", void 0);

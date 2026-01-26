@@ -15,6 +15,7 @@ interface ContactData {
   email?: string;
   number?: string;
   name?: string;
+  walletUserId?: number | null;
   extraInfo?: ExtraInfo[];
   lid?: string;
 }
@@ -58,12 +59,13 @@ const UpdateContactService = async ({
     );
   }
 
-  const { email: newEmail, name: newName, number: newNumber, extraInfo: newExtraInfo, lid } = contactData;
+  const { email: newEmail, name: newName, number: newNumber, walletUserId: newWalletUserId, extraInfo: newExtraInfo, lid } = contactData;
 
   await contact.update({
     name: newName,
     number: newNumber,
     email: newEmail,
+    walletUserId: newWalletUserId,
     lid
   });
 

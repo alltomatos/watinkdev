@@ -39,4 +39,28 @@ engineRoutes.get("/engine/version", (req, res) => __awaiter(void 0, void 0, void
         res.status(502).json({ error: "Engine Unavailable" });
     }
 }));
+/**
+ * @openapi
+ * /webchat/version:
+ *   get:
+ *     summary: Retorna a versão do serviço Webchat Engine
+ *     tags:
+ *       - System
+ *     responses:
+ *       200:
+ *         description: Versão do Webchat Engine
+ */
+engineRoutes.get("/webchat/version", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { data } = yield axios_1.default.get("http://engine-webchat:3335/version", {
+            headers: { "Cache-Control": "no-store" },
+            timeout: 1500,
+        });
+        res.setHeader("Cache-Control", "no-store");
+        res.status(200).json(data);
+    }
+    catch (e) {
+        res.status(502).json({ error: "Webchat Engine Unavailable" });
+    }
+}));
 exports.default = engineRoutes;

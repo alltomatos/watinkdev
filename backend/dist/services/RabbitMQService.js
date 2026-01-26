@@ -80,14 +80,14 @@ class RabbitMQService {
             yield this.channel.assertExchange("wbot.events", "topic", { durable: true });
         });
     }
-    publishCommand(routingKey, message) {
-        return __awaiter(this, void 0, void 0, function* () {
+    publishCommand(routingKey_1, message_1) {
+        return __awaiter(this, arguments, void 0, function* (routingKey, message, exchange = "wbot.commands") {
             if (!this.channel) {
                 logger_1.logger.warn("Cannot publish command, channel is closed");
                 return;
             }
-            logger_1.logger.info(`[RabbitMQ] Publishing command to ${routingKey}`);
-            this.channel.publish("wbot.commands", routingKey, Buffer.from(JSON.stringify(message)));
+            logger_1.logger.info(`[RabbitMQ] Publishing command to ${routingKey} on exchange ${exchange}`);
+            this.channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(message)));
         });
     }
     publishEvent(routingKey, message) {
@@ -142,6 +142,27 @@ class RabbitMQService {
                     }
                     catch (error) {
                         logger_1.logger.error("Error processing command", error);
+                        (_b = this.channel) === null || _b === void 0 ? void 0 : _b.nack(msg, false, false);
+                    }
+                }
+            }));
+        });
+    }
+    consumeQueue(queueName, handler) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.channel)
+                return;
+            yield this.channel.assertQueue(queueName, { durable: true });
+            this.channel.consume(queueName, (msg) => __awaiter(this, void 0, void 0, function* () {
+                var _a, _b;
+                if (msg) {
+                    try {
+                        const content = JSON.parse(msg.content.toString());
+                        yield handler(content);
+                        (_a = this.channel) === null || _a === void 0 ? void 0 : _a.ack(msg);
+                    }
+                    catch (error) {
+                        logger_1.logger.error(`Error processing queue message: ${error.message}`);
                         (_b = this.channel) === null || _b === void 0 ? void 0 : _b.nack(msg, false, false);
                     }
                 }

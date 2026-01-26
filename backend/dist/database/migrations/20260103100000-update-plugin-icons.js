@@ -13,11 +13,9 @@ module.exports = {
     up: (queryInterface) => __awaiter(void 0, void 0, void 0, function* () {
         yield queryInterface.bulkUpdate("Plugins", { iconUrl: "/assets/plugins/clientes/icon.png" }, { slug: "clientes" });
         yield queryInterface.bulkUpdate("Plugins", { iconUrl: "/assets/plugins/helpdesk/icon.png" }, { slug: "helpdesk" });
-        yield queryInterface.bulkUpdate("Plugins", { iconUrl: "/assets/plugins/whatsmeow/icon.png" }, { slug: "whatsmeow" });
     }),
     down: (queryInterface) => __awaiter(void 0, void 0, void 0, function* () {
         yield queryInterface.bulkUpdate("Plugins", { iconUrl: "https://plugins.watink.com/clientes/icon.png" }, { slug: "clientes" });
         yield queryInterface.bulkUpdate("Plugins", { iconUrl: "https://plugins.watink.com/helpdesk/icon.png" }, { slug: "helpdesk" });
-        yield queryInterface.bulkUpdate("Plugins", { iconUrl: "https://plugins.watink.com/whatsmeow/icon.png" }, { slug: "whatsmeow" });
     })
 };

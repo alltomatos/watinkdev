@@ -47,6 +47,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const Yup = __importStar(require("yup"));
 const AppError_1 = __importDefault(require("../../errors/AppError"));
+const Tenant_1 = __importDefault(require("../../models/Tenant"));
 const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const AssociateWhatsappQueue_1 = __importDefault(require("./AssociateWhatsappQueue"));
 const CreateWhatsAppService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ name, status = "DISCONNECTED", queueIds = [], greetingMessage, farewellMessage, isDefault = false, syncHistory = false, syncPeriod, keepAlive, tenantId, type = "whatsapp", chatConfig = {} }) {
@@ -69,6 +70,15 @@ const CreateWhatsAppService = (_a) => __awaiter(void 0, [_a], void 0, function* 
     }
     catch (err) {
         throw new AppError_1.default(err.message);
+    }
+    if (process.env.TENANTS === "true" && tenantId) {
+        const tenant = yield Tenant_1.default.findOne({ where: { id: tenantId } });
+        if (tenant) {
+            const whatsappCount = yield Whatsapp_1.default.count({ where: { tenantId } });
+            if (whatsappCount >= tenant.maxConnections) {
+                throw new AppError_1.default("ERR_MAX_CONNECTIONS_REACHED", 403);
+            }
+        }
     }
     const whatsappFound = yield Whatsapp_1.default.findOne();
     isDefault = !whatsappFound;
@@ -95,7 +105,7 @@ const CreateWhatsAppService = (_a) => __awaiter(void 0, [_a], void 0, function* 
         keepAlive,
         tenantId,
         type,
-        chatConfig
+        chatConfig: chatConfig ? JSON.stringify(chatConfig) : null
     }, { include: ["queues"] });
     yield (0, AssociateWhatsappQueue_1.default)(whatsapp, queueIds);
     return { whatsapp, oldDefaultWhatsapp };

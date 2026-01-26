@@ -91,7 +91,7 @@ const UpdateWhatsAppService = (_a) => __awaiter(void 0, [_a], void 0, function* 
         syncPeriod,
         keepAlive,
         type,
-        chatConfig
+        chatConfig: chatConfig !== undefined ? JSON.stringify(chatConfig) : undefined
     });
     // [NEW] If critical settings changed, stop session to force reconnection with new settings
     if (whatsapp.status === "CONNECTED" && (syncHistory !== undefined || syncPeriod !== undefined || keepAlive !== undefined)) {

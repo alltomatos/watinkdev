@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # 🧠 Banco de Dados
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - watink-internal
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager] # Preferência por manager para persistência simples
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # ⚡ Redis
+  redis:
+    image: redis:alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - watink-internal
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  # 🐇 RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    volumes:
+      - rabbitmq_prod_data:/var/lib/rabbitmq
+    networks:
+      - watink-internal
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  # 🖥️ Backend API
+  backend:
+    image: painelsaas-backend:latest
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks:
+      - watink-internal
+      - proxy
+    deploy:
+      mode: replicated
+      replicas: 2 # Alta disponibilidade
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.watink-api.rule=Host(`api.saas.watink.com`)"
+        - "traefik.http.routers.watink-api.entrypoints=websecure"
+        - "traefik.http.routers.watink-api.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.watink-api.loadbalancer.server.port=3000"
+
+  # 🔔 Push Proxy
+  push-proxy:
+    image: painelsaas-push-proxy:latest
+    environment:
+      PORT: 8080
+      REDIS_ADDR: redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      FIREBASE_CREDENTIALS: /app/service-account.json
+    configs:
+      - source: firebase_credentials
+        target: /app/service-account.json
+    networks:
+      - watink-internal
+      - proxy
+    deploy:
+      mode: replicated
+      replicas: 2
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.watink-push.rule=Host(`push.watink.com`)"
+        - "traefik.http.routers.watink-push.entrypoints=websecure"
+        - "traefik.http.routers.watink-push.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.watink-push.loadbalancer.server.port=8080"
+
+  # 🎨 Frontend
+  frontend:
+    image: painelsaas-frontend:latest
+    networks:
+      - proxy
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.watink-front.rule=Host(`saas.watink.com`)"
+        - "traefik.http.routers.watink-front.entrypoints=websecure"
+        - "traefik.http.routers.watink-front.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.watink-front.loadbalancer.server.port=80"
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+  rabbitmq_prod_data:
+
+configs:
+  firebase_credentials:
+    file: ./push-proxy/service-account.json
+
+networks:
+  watink-internal:
+    driver: overlay
+  proxy:
+    external: true

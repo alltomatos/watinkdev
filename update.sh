@@ -36,6 +36,11 @@ elif [ "$SERVICE" == "plugin-smtp" ]; then
   COMPOSE_SVC="plugin-smtp"
   IMAGE_NAME="watink/plugin-smtp"
   COMPOSE_IMAGE="watink/plugin-smtp"
+elif [ "$SERVICE" == "watink-guard" ]; then
+  DIR="watink-guard"
+  COMPOSE_SVC="watink-guard"
+  IMAGE_NAME="watink/guard"
+  COMPOSE_IMAGE="watink/guard"
 else
   echo "Invalid service. Use: backend, engine, frontend, plugin-manager, or plugin-smtp"
   exit 1
@@ -84,6 +89,9 @@ elif [ "$SERVICE" == "plugin-smtp" ]; then
 elif [ "$SERVICE" == "engine" ]; then
   sed -e "s|image: watink/engine:.*|image: watink/engine:$VERSION_NUM|g" -e "s|ENGINE_VERSION=.*|ENGINE_VERSION=$VERSION_NUM|g" docker-stack.yml > docker-stack.yml.tmp && mv docker-stack.yml.tmp docker-stack.yml
   sed -e "s|image: watink/engine:.*|image: watink/engine:$VERSION_NUM|g" -e "s|ENGINE_VERSION=.*|ENGINE_VERSION=$VERSION_NUM|g" docker-compose.prod.yml > docker-compose.prod.yml.tmp && mv docker-compose.prod.yml.tmp docker-compose.prod.yml
+elif [ "$SERVICE" == "watink-guard" ]; then
+  sed "s|image: watink/guard:.*|image: watink/guard:$VERSION_NUM|g" docker-stack.yml > docker-stack.yml.tmp && mv docker-stack.yml.tmp docker-stack.yml
+  sed "s|image: watink/guard:.*|image: watink/guard:$VERSION_NUM|g" docker-compose.prod.yml > docker-compose.prod.yml.tmp && mv docker-compose.prod.yml.tmp docker-compose.prod.yml
 else
   sed "s|image: watink/$SERVICE:.*|image: watink/$SERVICE:$VERSION_NUM|g" docker-stack.yml > docker-stack.yml.tmp && mv docker-stack.yml.tmp docker-stack.yml
   sed "s|image: watink/$SERVICE:.*|image: watink/$SERVICE:$VERSION_NUM|g" docker-compose.prod.yml > docker-compose.prod.yml.tmp && mv docker-compose.prod.yml.tmp docker-compose.prod.yml

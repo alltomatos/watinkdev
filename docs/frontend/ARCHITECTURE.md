@@ -1,13 +1,13 @@
 # Arquitetura do Frontend
 
 ## Tecnologias
-- **Build Tool**: Vite
-- **Framework**: React 17
-- **UI Library**: Material UI v4
+- **Build Tool**: Vite 4+
+- **Framework**: React 18+
+- **UI Library**: Material UI v4 (Legacy) / MUI v5 (Em migração)
 - **State Management**: React Context API
 - **Routing**: React Router DOM v5
 - **HTTP Client**: Axios
-- **Real-time**: Socket.io Client
+- **Real-time**: Socket.io Client 4.x
 
 ## Estrutura de Diretórios
 - `src/components`: Componentes reutilizáveis.

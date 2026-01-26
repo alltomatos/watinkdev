@@ -54,8 +54,6 @@ const User_1 = __importDefault(require("../models/User"));
 const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { tenantId } = req.user;
-        console.log("DEBUG: GroupController.index tenantId:", tenantId, "UserID:", req.user.id);
-        console.log("DEBUG: GroupController.index tenantId:", tenantId, "User:", req.user);
         const groups = yield Group_1.default.findAll({
             where: { tenantId },
             include: [
@@ -66,7 +64,6 @@ const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         return res.json(groups);
     }
     catch (err) {
-        console.error("DEBUG: GroupController.index Error:", err);
         throw new AppError_1.default("INTERNAL_SERVER_ERROR", 500);
     }
 });
@@ -87,15 +84,6 @@ const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         name: data.name,
         tenantId
     });
-    if (data.permissions && data.permissions.length > 0) {
-        yield group.$set("permissions", data.permissions);
-    }
-    // Associar IDs de permissão pivot com tenantId (Se necessário customizar a pivot, faríamos loop)
-    // Mas como a pivot tem tenantId, o sequelize pode não preencher auto se usarmos apenas $set ids.
-    // Vamos corrigir isso: para GroupPermission precisamos setar tenantId.
-    // Como o Sequelize BelongsToMany set padrão é simples, é melhor iterar se quisermos garantir tenantId na pivot.
-    // OBS: Na migration, GroupPermissions.tenantId é NotNull.
-    // Vamos usar addPermissions passando through options.
     if (data.permissions && data.permissions.length > 0) {
         const permissions = yield Permission_1.default.findAll({ where: { id: data.permissions } });
         yield group.$set("permissions", permissions, { through: { tenantId } });

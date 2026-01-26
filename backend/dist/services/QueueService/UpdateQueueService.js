@@ -48,10 +48,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const sequelize_1 = require("sequelize");
 const Yup = __importStar(require("yup"));
 const AppError_1 = __importDefault(require("../../errors/AppError"));
-const Queue_1 = __importDefault(require("../../models/Queue"));
+const Queue_1 = __importStar(require("../../models/Queue"));
 const ShowQueueService_1 = __importDefault(require("./ShowQueueService"));
+// Valid distribution strategies for validation
+const validStrategies = Object.values(Queue_1.DISTRIBUTION_STRATEGIES);
 const UpdateQueueService = (queueId, queueData) => __awaiter(void 0, void 0, void 0, function* () {
-    const { color, name } = queueData;
+    const { color, name, distributionStrategy, prioritizeWallet } = queueData;
     const queueSchema = Yup.object().shape({
         name: Yup.string()
             .min(2, "ERR_QUEUE_INVALID_NAME")
@@ -81,10 +83,14 @@ const UpdateQueueService = (queueId, queueData) => __awaiter(void 0, void 0, voi
                 return !queueWithSameColor;
             }
             return true;
-        }))
+        })),
+        distributionStrategy: Yup.string()
+            .oneOf(validStrategies, "ERR_QUEUE_INVALID_DISTRIBUTION_STRATEGY")
+            .nullable(),
+        prioritizeWallet: Yup.boolean().nullable()
     });
     try {
-        yield queueSchema.validate({ color, name });
+        yield queueSchema.validate({ color, name, distributionStrategy, prioritizeWallet });
     }
     catch (err) {
         throw new AppError_1.default(err.message);

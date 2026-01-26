@@ -86,4 +86,36 @@ const models = [
 
 sequelize.addModels(models);
 
+sequelize.addHook("beforeFind", async (options: any) => {
+  if (options.tenantId && options.transaction) {
+    await sequelize.query(`SET app.current_tenant = '${options.tenantId}'`, {
+      transaction: options.transaction
+    });
+  }
+});
+
+sequelize.addHook("beforeCreate", async (instance: any, options: any) => {
+  if (instance.tenantId && options.transaction) {
+    await sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
+      transaction: options.transaction
+    });
+  }
+});
+
+sequelize.addHook("beforeUpdate", async (instance: any, options: any) => {
+  if (instance.tenantId && options.transaction) {
+    await sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
+      transaction: options.transaction
+    });
+  }
+});
+
+sequelize.addHook("beforeDestroy", async (instance: any, options: any) => {
+  if (instance.tenantId && options.transaction) {
+    await sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
+      transaction: options.transaction
+    });
+  }
+});
+
 export default sequelize;

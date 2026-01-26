@@ -38,11 +38,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const isAuth_1 = __importDefault(require("../middleware/isAuth"));
+const multer_1 = __importDefault(require("multer"));
+const upload_1 = __importDefault(require("../config/upload"));
 const UserController = __importStar(require("../controllers/UserController"));
 const userRoutes = (0, express_1.Router)();
+const upload = (0, multer_1.default)(upload_1.default);
 userRoutes.get("/", isAuth_1.default, UserController.index);
 userRoutes.post("/", isAuth_1.default, UserController.store);
-userRoutes.put("/:userId", isAuth_1.default, UserController.update);
+userRoutes.put("/:userId", isAuth_1.default, upload.single("profileImage"), UserController.update);
 userRoutes.get("/:userId", isAuth_1.default, UserController.show);
 userRoutes.delete("/:userId", isAuth_1.default, UserController.remove);
+userRoutes.post("/:userId/toggle-status", isAuth_1.default, UserController.toggleStatus);
+userRoutes.post("/:userId/resend-welcome", isAuth_1.default, UserController.resendWelcomeEmail);
+userRoutes.post("/:userId/manual-verify", isAuth_1.default, UserController.manualVerify);
 exports.default = userRoutes;

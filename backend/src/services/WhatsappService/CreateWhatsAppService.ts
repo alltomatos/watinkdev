@@ -1,6 +1,7 @@
 import * as Yup from "yup";
 
 import AppError from "../../errors/AppError";
+import Tenant from "../../models/Tenant";
 import Whatsapp from "../../models/Whatsapp";
 import AssociateWhatsappQueue from "./AssociateWhatsappQueue";
 
@@ -60,6 +61,16 @@ const CreateWhatsAppService = async ({
     await schema.validate({ name, status, isDefault });
   } catch (err) {
     throw new AppError(err.message);
+  }
+
+  if (process.env.TENANTS === "true" && tenantId) {
+    const tenant = await Tenant.findOne({ where: { id: tenantId } });
+    if (tenant) {
+      const whatsappCount = await Whatsapp.count({ where: { tenantId } });
+      if (whatsappCount >= tenant.maxConnections) {
+        throw new AppError("ERR_MAX_CONNECTIONS_REACHED", 403);
+      }
+    }
   }
 
   const whatsappFound = await Whatsapp.findOne();

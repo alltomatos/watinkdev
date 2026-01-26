@@ -122,19 +122,19 @@
     <div class="arrow">👇</div>
 
     <!-- Webchat Embed -->
-    <script>
-        window.watinkWebchatConfig = {
-            url: "http://api.localhost",
-            webchatId: "2"
-        };
-        (function (d, s, id) {
-            var js, fjs = d.getElementsByTagName(s)[0];
-            if (d.getElementById(id)) return;
-            js = d.createElement(s); js.id = id;
-            js.src = "http://api.localhost/public/webchat.js?v=" + new Date().getTime();
-            fjs.parentNode.insertBefore(js, fjs);
-        }(document, 'script', 'watink-webchat-sdk'));
-    </script>
+<script>
+  window.watinkWebchatConfig = {
+    url: "https://api.watink.com",
+    webchatId: "6"
+  };
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "https://api.watink.com/public/webchat.js?v=1.3.248";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'watink-webchat-sdk'));
+</script>
 </body>
 
 </html>
