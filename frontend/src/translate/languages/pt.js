@@ -310,7 +310,7 @@ const messages = {
           email: "Email",
           password: "Senha",
           profile: "Perfil",
-          group: "Grupo",
+          group: "Função",
           whatsapp: "Conexão Padrão",
         },
         buttons: {
@@ -408,8 +408,9 @@ const messages = {
           clients: "Clientes",
           helpdesk: "Helpdesk",
           queues: "Filas",
+          tags: "Tags",
           administration: "Administração",
-          groups: "Grupos",
+          groups: "Funções",
           users: "Usuários",
           knowledgeBase: "Base Conhecimento",
           settings: "Configurações",
@@ -494,16 +495,17 @@ const messages = {
         },
       },
       groups: {
-        title: "Grupos",
+        title: "Funções",
         table: {
           name: "Nome",
+          permissions: "Permissões",
           actions: "Ações",
         },
         buttons: {
-          add: "Adicionar grupo",
+          add: "Adicionar função",
         },
         toasts: {
-          deleted: "Grupo excluído com sucesso.",
+          deleted: "Função excluída com sucesso.",
         },
         confirmationModal: {
           deleteTitle: "Excluir",
@@ -513,8 +515,8 @@ const messages = {
       },
       groupModal: {
         title: {
-          add: "Adicionar grupo",
-          edit: "Editar grupo",
+          add: "Adicionar função",
+          edit: "Editar função",
         },
         form: {
           name: "Nome",

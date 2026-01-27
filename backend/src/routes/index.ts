@@ -38,6 +38,7 @@ import emailTemplateRoutes from "./emailTemplateRoutes";
 import saasRoutes from "./saasRoutes";
 
 import mobileRoutes from "./mobileRoutes";
+import tagRoutes from "./tagRoutes";
 
 const routes = Router();
 
@@ -75,6 +76,7 @@ routes.use(emailTemplateRoutes);
 routes.use(webchatRoutes);
 routes.use(stepRoutes);
 routes.use(saasRoutes);
+routes.use(tagRoutes);
 routes.use("/users", userRoutes);
 
 export default routes;

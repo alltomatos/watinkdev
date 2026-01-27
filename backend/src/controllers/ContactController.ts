@@ -36,14 +36,28 @@ export interface ContactData {
   email?: string;
   walletUserId?: number | null;
   extraInfo?: ExtraInfo[];
+  tags?: number[];
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-  const { searchParam, pageNumber } = req.query as IndexQuery;
+  const { searchParam, pageNumber, tags } = req.query as any;
+  const { tenantId } = req.user;
+
+  // Converter tags para array de números se vier como string ou array
+  let tagIds: number[] = [];
+  if (tags) {
+    if (Array.isArray(tags)) {
+      tagIds = tags.map((t: string) => +t);
+    } else {
+      tagIds = [+tags];
+    }
+  }
 
   const { contacts, count, hasMore } = await ListContactsService({
     searchParam,
-    pageNumber
+    pageNumber,
+    tags: tagIds.length > 0 ? tagIds : undefined,
+    tenantId
   });
 
   return res.json({ contacts, count, hasMore });
@@ -90,6 +104,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   let email = newContact.email;
   let walletUserId = newContact.walletUserId;
   let extraInfo = newContact.extraInfo;
+  let tags = newContact.tags;
 
   try {
     const contact = await CreateContactService({
@@ -100,7 +115,8 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
       profilePicUrl,
       walletUserId,
       tenantId,
-      waitEnrichment: true
+      waitEnrichment: true,
+      tags
     });
 
     const io = getIO();

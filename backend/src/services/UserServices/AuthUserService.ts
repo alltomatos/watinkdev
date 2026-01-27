@@ -12,6 +12,7 @@ import Permission from "../../models/Permission";
 import Plugin from "../../models/Plugin";
 import PluginInstallation from "../../models/PluginInstallation";
 import Tenant from "../../models/Tenant";
+import Role from "../../models/Role";
 import { Op } from "sequelize";
 
 interface SerializedUser {
@@ -50,9 +51,19 @@ const AuthUserService = async ({
       {
         model: Group,
         as: "groups",
-        include: [{ model: Permission, as: "permissions", attributes: ["id", "name"] }]
+        include: [
+          {
+            model: Role,
+            as: "roles",
+            include: [{ model: Permission, as: "permissions", attributes: ["id", "resource", "action"] }]
+          }
+        ]
       },
-      { model: Permission, as: "permissions", attributes: ["id", "name"] }
+      {
+        model: Role,
+        as: "roles",
+        include: [{ model: Permission, as: "permissions", attributes: ["id", "resource", "action"] }]
+      }
     ]
   });
 

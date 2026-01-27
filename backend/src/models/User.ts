@@ -23,10 +23,12 @@ import UserQueue from "./UserQueue";
 import Whatsapp from "./Whatsapp";
 import Tenant from "./Tenant";
 import Group from "./Group";
-import Permission from "./Permission";
-import UserPermission from "./UserPermission";
+import Role from "./Role";
+import UserRole from "./UserRole";
 import UserGroup from "./UserGroup";
 import Contact from "./Contact";
+import Permission from "./Permission";
+import UserPermission from "./UserPermission";
 
 @Table
 class User extends Model<User> {
@@ -113,6 +115,9 @@ class User extends Model<User> {
 
   @BelongsToMany(() => Group, () => UserGroup)
   groups: Group[];
+
+  @BelongsToMany(() => Role, () => UserRole)
+  roles: Role[];
 
   @BelongsToMany(() => Permission, () => UserPermission)
   permissions: Permission[];

@@ -4,6 +4,7 @@ import AppError from "../../errors/AppError";
 import Tenant from "../../models/Tenant";
 import Whatsapp from "../../models/Whatsapp";
 import AssociateWhatsappQueue from "./AssociateWhatsappQueue";
+import EntityTagService from "../TagServices/EntityTagService";
 
 interface Request {
   name: string;
@@ -18,6 +19,7 @@ interface Request {
   tenantId?: number | string;
   type?: string;
   chatConfig?: any;
+  tags?: number[];
 }
 
 interface Response {
@@ -37,7 +39,8 @@ const CreateWhatsAppService = async ({
   keepAlive,
   tenantId,
   type = "whatsapp",
-  chatConfig = {}
+  chatConfig = {},
+  tags
 }: Request): Promise<Response> => {
   const schema = Yup.object().shape({
     name: Yup.string()
@@ -110,6 +113,15 @@ const CreateWhatsAppService = async ({
   );
 
   await AssociateWhatsappQueue(whatsapp, queueIds);
+
+  if (tags && tags.length > 0) {
+    await EntityTagService.BulkApplyTags({
+      tagIds: tags,
+      entityType: "whatsapp",
+      entityId: whatsapp.id,
+      tenantId: tenantId ? tenantId.toString() : "1" // Fallback usually not needed if auth middleware works
+    });
+  }
 
   return { whatsapp, oldDefaultWhatsapp };
 };

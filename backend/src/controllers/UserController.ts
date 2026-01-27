@@ -34,7 +34,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { email, password, name, profile, queueIds, whatsappId, groupIds } = req.body;
+  const { email, password, name, profile, queueIds, whatsappId, groupIds, permissions } = req.body;
 
   if (
     req.url === "/signup" &&
@@ -53,6 +53,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     queueIds,
     whatsappId,
     groupIds,
+    permissions,
     tenantId: req.user?.tenantId || undefined
   });
 
@@ -190,6 +191,12 @@ export const manualVerify = async (req: Request, res: Response): Promise<Respons
 
   const user = await ShowUserService(userId);
   await user.update({ emailVerified: true });
+
+  const io = getIO();
+  io.emit("user", {
+    action: "update",
+    user
+  });
 
   return res.status(200).json(user);
 };

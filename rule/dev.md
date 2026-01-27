@@ -228,7 +228,8 @@ docker stack deploy -c docker-stack.yml watink
 > **Clean Deploy**: Use `docker stack rm watink` se precisar limpar volumes.
 
 #### 2. Aplicando Alterações (Update Script)
-Para aplicar mudanças de código, utilize sempre o script de automação `./update.sh`.
+> [!IMPORTANT]
+> **Obrigatório**: Para aplicar mudanças de código, utilize **exclusivamente** o script de automação `./update.sh`. Nunca execute `docker stack deploy` manualmente após um build, pois o script garante que a imagem foi construída e a tag foi atualizada no `docker-stack.yml` antes de disparar o deploy, evitando condições de corrida.
 
 Sintaxe: `./update.sh <service> [type]`
 

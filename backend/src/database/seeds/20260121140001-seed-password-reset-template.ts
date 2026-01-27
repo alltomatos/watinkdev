@@ -64,7 +64,7 @@ module.exports = {
 
         if (templates.length > 0) {
             // @ts-ignore
-            await queryInterface.bulkInsert("EmailTemplates", templates, { ignoreDuplicates: true });
+            await queryInterface.bulkInsert("EmailTemplates", templates, { ignoreDuplicates: true } as any);
         }
     },
 

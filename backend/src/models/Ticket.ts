@@ -11,7 +11,8 @@ import {
   AutoIncrement,
   Default,
   DataType,
-  AllowNull
+  AllowNull,
+  BelongsToMany
 } from "sequelize-typescript";
 
 import Contact from "./Contact";
@@ -21,6 +22,8 @@ import User from "./User";
 import Whatsapp from "./Whatsapp";
 import Tenant from "./Tenant";
 import Step from "./Step";
+import Tag from "./Tag";
+import EntityTag from "./EntityTag";
 
 @Table
 class Ticket extends Model<Ticket> {
@@ -99,6 +102,9 @@ class Ticket extends Model<Ticket> {
 
   @BelongsTo(() => Tenant)
   tenant: Tenant;
+
+  @BelongsToMany(() => Tag, () => EntityTag, "entityId", "tagId")
+  tags: Tag[];
 }
 
 export default Ticket;

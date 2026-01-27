@@ -13,10 +13,12 @@ import {
     BelongsTo
 } from "sequelize-typescript";
 import User from "./User";
-import Permission from "./Permission";
-import GroupPermission from "./GroupPermission";
+import Role from "./Role";
+import GroupRole from "./GroupRole";
 import Tenant from "./Tenant";
 import UserGroup from "./UserGroup";
+import Permission from "./Permission";
+import GroupPermission from "./GroupPermission";
 
 @Table
 class Group extends Model<Group> {
@@ -38,6 +40,9 @@ class Group extends Model<Group> {
     // Nova relação Many-to-Many: Um grupo pode ter múltiplos usuários
     @BelongsToMany(() => User, () => UserGroup)
     users: User[];
+
+    @BelongsToMany(() => Role, () => GroupRole)
+    roles: Role[];
 
     @BelongsToMany(() => Permission, () => GroupPermission)
     permissions: Permission[];
