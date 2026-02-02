@@ -297,3 +297,86 @@ Seguimos estritamente o **Semantic Versioning (SemVer)**.
 2.  **Atualize o `package.json`** (`npm version ...`).
 3.  **Build e Tag Docker**.
 4.  **Atualize o Serviço**.
+
+### 3.13 Diretrizes de Design Premium
+
+O Watink deve oferecer uma experiência visual de alta qualidade. Todas as interfaces devem seguir os princípios de design premium abaixo.
+
+#### Filosofia de Design
+- **Primeira impressão impactante**: O usuário deve ser "WOWed" ao ver a interface pela primeira vez.
+- **Modernidade**: Utilize tendências atuais de UI/UX (glassmorphism, gradientes sutis, micro-animações).
+- **Consistência**: Mantenha padrões visuais em todas as telas.
+
+#### Cores e Paleta
+- ❌ **Evite cores genéricas** (vermelho puro, azul padrão, verde básico).
+- ✅ **Use paletas curadas** com cores HSL personalizadas e harmoniosas.
+- ✅ **Dark mode elegante**: Fundos com gradientes sutis (#0f0f23 → #1a1a2e).
+- ✅ **Accent colors**: Tons vibrantes para CTAs (ex: gradiente azul-roxo para botões principais).
+
+#### Tipografia
+- Use fontes modernas do Google Fonts: **Inter**, **Outfit**, **Roboto**, **Poppins**.
+- Nunca use fontes padrão do browser (Arial, Times New Roman).
+- Hierarquia clara: títulos em bold, corpo em regular, captions em light.
+
+#### Componentes Visuais
+- **Cards**: Bordas arredondadas (8-16px), sombras suaves, efeito hover com scale/elevation.
+- **Botões**: Gradientes, transições suaves (0.2s ease), estados hover/active distintos.
+- **Inputs**: Focus states com glow colorido, placeholders elegantes.
+- **Modais**: Backdrop blur (glassmorphism), animação de entrada fade+scale.
+
+#### Micro-Animações
+- **Obrigatórias** em: transições de página, hover em cards/botões, loading states.
+- **Bibliotecas sugeridas**: Framer Motion, react-spring.
+- **Timing**: Duração de 150-300ms, easing `ease-out` ou `cubic-bezier`.
+
+#### Anti-Patterns (O que NÃO fazer)
+- ❌ Interfaces "flat" e sem profundidade visual.
+- ❌ Espaçamentos inconsistentes.
+- ❌ Botões genéricos sem hover effects.
+- ❌ Placeholders de imagem (use AI para gerar assets se necessário).
+- ❌ MVPs visuais básicos - cada tela deve parecer pronta para produção.
+
+#### Exemplo de Implementação CSS
+
+```css
+/* Card Premium */
+.premium-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.premium-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+
+/* Botão Gradiente */
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  transform: scale(1.02);
+}
+```
+
+#### Checklist de Qualidade Visual
+Antes de entregar qualquer interface, verifique:
+- [ ] Dark mode implementado e elegante
+- [ ] Todos os botões têm estados hover/active
+- [ ] Cards têm sombras e bordas arredondadas
+- [ ] Tipografia usa fonte moderna (não padrão)
+- [ ] Espaçamentos consistentes (múltiplos de 4px ou 8px)
+- [ ] Micro-animações em elementos interativos
+- [ ] Cores não são genéricas (HSL customizado)
