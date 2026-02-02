@@ -1,7 +1,7 @@
 
 services:
   backend:
-    image: watink/backend:1.3.462
+    image: watink/backend:1.3.463
     build:
       context: ./backend
       dockerfile: ./Dockerfile
@@ -152,7 +152,7 @@ services:
           memory: 256M
 
   flow-worker:
-    image: watink/backend:1.3.462
+    image: watink/backend:1.3.463
     command: ["node", "dist/flow-worker.js"]
     environment:
       - DB_DIALECT=postgres

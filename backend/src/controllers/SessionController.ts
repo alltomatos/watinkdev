@@ -47,7 +47,35 @@ export const remove = async (
 ): Promise<Response> => {
   const frontendUrl = process.env.FRONTEND_URL || "";
   const isHttps = frontendUrl.startsWith("https://");
-  res.clearCookie("jrt", { httpOnly: true, sameSite: isHttps ? "none" : "lax", secure: isHttps });
+
+  // Extract domain for cookie clearing (must match how it was set)
+  let domain: string | undefined;
+  try {
+    const url = new URL(frontendUrl);
+    const hostParts = url.hostname.split(".");
+    if (hostParts.length >= 2) {
+      if (hostParts[hostParts.length - 1] === "localhost") {
+        domain = ".localhost";
+      } else {
+        domain = "." + hostParts.slice(-2).join(".");
+      }
+    }
+  } catch (e) {
+    domain = undefined;
+  }
+
+  const clearOptions: any = {
+    httpOnly: true,
+    sameSite: isHttps ? "none" : "lax",
+    secure: isHttps,
+    path: "/"
+  };
+
+  if (domain) {
+    clearOptions.domain = domain;
+  }
+
+  res.clearCookie("jrt", clearOptions);
 
   return res.send();
 };
