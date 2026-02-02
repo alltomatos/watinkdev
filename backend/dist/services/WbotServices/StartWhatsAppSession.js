@@ -71,12 +71,18 @@ const StartWhatsAppSession = (whatsapp, usePairingCode, phoneNumber, force // Ne
                     logger_1.logger.error(`StartWhatsAppSession: papiUrl setting missing for tenant ${whatsapp.tenantId}`);
                     throw new AppError_1.default("ERR_PAPI_URL_NOT_CONFIGURED", 400);
                 }
-                logger_1.logger.info(`StartWhatsAppSession: PAPI settings loaded. URL provided: ${!!papiUrl}, Key provided: ${!!papiKey}`);
             }
-            else {
-                logger_1.logger.warn(`StartWhatsAppSession: PAPI engine selected but 'engine-papi' plugin not found in DB.`);
-            }
+            logger_1.logger.info(`StartWhatsAppSession: PAPI settings loaded. URL provided: ${!!papiUrl}, Key provided: ${!!papiKey}`);
         }
+        else {
+            logger_1.logger.warn(`StartWhatsAppSession: PAPI engine selected but 'engine-papi' plugin not found in DB.`);
+        }
+        // [NEW] Auto-configure Webhook URL based on Frontend/App Domain
+        // The engine-papi is exposed via Traefik at /plugins/papi
+        const appDomain = process.env.FRONTEND_URL || "http://app.localhost";
+        // Ensure no trailing slash
+        const cleanDomain = appDomain.endsWith("/") ? appDomain.slice(0, -1) : appDomain;
+        const papiWebhookUrl = `${cleanDomain}/plugins/papi/webhook`;
         let commandType = "session.start";
         let exchange = "wbot.commands";
         let routingKey = `wbot.${whatsapp.tenantId}.${whatsapp.id}.${whatsapp.engineType || "whaileys"}.session.start`;
@@ -104,7 +110,8 @@ const StartWhatsAppSession = (whatsapp, usePairingCode, phoneNumber, force // Ne
                 webchatId: whatsapp.id, // For webchat handler compatibility
                 force,
                 papiUrl,
-                papiKey
+                papiKey,
+                webhookUrl: papiWebhookUrl // [NEW] Pass auto-generated webhook URL
             }
         };
         yield RabbitMQService_1.default.publishCommand(routingKey, command, exchange);

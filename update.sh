@@ -137,8 +137,8 @@ docker tag $IMAGE_NAME:$VERSION_NUM $IMAGE_NAME:latest
 
 # 5. Push
 echo "🚀 Pushing images to registry..."
-# docker push $IMAGE_NAME:$VERSION_NUM
-# docker push $IMAGE_NAME:latest
+docker push $IMAGE_NAME:$VERSION_NUM
+docker push $IMAGE_NAME:latest
 
 # 6. Redeploy Stack
 echo "🔄 Redeploying Stack via docker stack deploy..."

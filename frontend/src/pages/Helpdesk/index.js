@@ -165,7 +165,7 @@ const Helpdesk = () => {
 
     return (
         <Can
-            role={user.profile}
+            user={user}
             perform="helpdesk:read"
             yes={() => (
                 <Container maxWidth="lg" className={classes.root}>
@@ -195,7 +195,7 @@ const Helpdesk = () => {
                                             Ver Kanban
                                         </Button>
                                         <Can
-                                            role={user.profile}
+                                            user={user}
                                             perform="helpdesk:write"
                                             yes={() => (
                                                 <Button
@@ -322,7 +322,7 @@ const Helpdesk = () => {
                                                             </TableCell>
                                                             <TableCell align="right">
                                                                 <Can
-                                                                    role={user.profile}
+                                                                    user={user}
                                                                     perform="helpdesk:write"
                                                                     yes={() => (
                                                                         <IconButton

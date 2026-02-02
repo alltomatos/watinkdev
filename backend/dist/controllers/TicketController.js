@@ -136,7 +136,8 @@ const syncHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             toDate: toDate || new Date().toISOString()
         }
     };
-    yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${ticket.whatsappId}.history.sync`, command);
+    const engineType = ticket.whatsapp.engineType || "whaileys";
+    yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${ticket.whatsappId}.${engineType}.history.sync`, command);
     return res.status(202).json({
         message: "Sincronização de histórico iniciada",
         ticketId: ticket.id

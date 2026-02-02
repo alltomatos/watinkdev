@@ -54,7 +54,7 @@ tags }) {
             where: { status: "CONNECTED", tenantId }
         });
         if (whatsapp) {
-            yield RabbitMQService_1.default.publishCommand("wbot.global.contact.sync", {
+            yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`, {
                 id: (0, uuid_1.v4)(),
                 timestamp: Date.now(),
                 type: "contact.sync",

@@ -45,7 +45,9 @@ export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  res.clearCookie("jrt", { httpOnly: true, sameSite: "none", secure: true });
+  const frontendUrl = process.env.FRONTEND_URL || "";
+  const isHttps = frontendUrl.startsWith("https://");
+  res.clearCookie("jrt", { httpOnly: true, sameSite: isHttps ? "none" : "lax", secure: isHttps });
 
   return res.send();
 };

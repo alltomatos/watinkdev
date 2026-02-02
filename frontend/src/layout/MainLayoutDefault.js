@@ -162,7 +162,7 @@ const MainLayoutDefault = ({ children }) => {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const { data } = await api.get("/settings");
+                const { data } = await api.get("/public-settings");
                 const settingsData = Array.isArray(data) ? data : [];
 
                 const logoSetting = settingsData.find(s => s.key === "systemLogo");

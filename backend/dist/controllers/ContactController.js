@@ -59,6 +59,7 @@ const DeleteContactService_1 = __importDefault(require("../services/ContactServi
 const ImportContactsService_1 = __importStar(require("../services/ContactServices/ImportContactsService"));
 const AppError_1 = __importDefault(require("../errors/AppError"));
 const GetContactService_1 = __importDefault(require("../services/ContactServices/GetContactService"));
+const Whatsapp_1 = __importDefault(require("../models/Whatsapp"));
 const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { searchParam, pageNumber, tags } = req.query;
     const { tenantId } = req.user;
@@ -184,18 +185,23 @@ const sync = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { tenantId } = req.user;
     try {
         const contact = yield (0, ShowContactService_1.default)(contactId);
-        yield RabbitMQService_1.default.publishCommand("wbot.global.contact.sync", {
-            id: (0, uuid_1.v4)(),
-            timestamp: Date.now(),
-            type: "contact.sync",
-            payload: {
-                contactId: +contactId,
-                number: contact.number,
-                lid: contact.lid || undefined,
-                sessionId: 1
-            },
-            tenantId
+        const whatsapp = yield Whatsapp_1.default.findOne({
+            where: { tenantId, status: "CONNECTED" }
         });
+        if (whatsapp) {
+            yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`, {
+                id: (0, uuid_1.v4)(),
+                timestamp: Date.now(),
+                type: "contact.sync",
+                payload: {
+                    contactId: +contactId,
+                    number: contact.number,
+                    lid: contact.lid || undefined,
+                    sessionId: whatsapp.id
+                },
+                tenantId
+            });
+        }
         return res.status(200).json({ message: "Contact sync scheduled via RabbitMQ." });
     }
     catch (error) {

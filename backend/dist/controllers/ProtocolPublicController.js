@@ -18,6 +18,7 @@ const ProtocolHistory_1 = __importDefault(require("../models/ProtocolHistory"));
 const ProtocolAttachment_1 = __importDefault(require("../models/ProtocolAttachment"));
 const User_1 = __importDefault(require("../models/User"));
 const Tenant_1 = __importDefault(require("../models/Tenant"));
+const Setting_1 = __importDefault(require("../models/Setting"));
 const AppError_1 = __importDefault(require("../errors/AppError"));
 const show = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { token } = req.params;
@@ -56,12 +57,23 @@ const show = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             "priority",
             "createdAt",
             "resolvedAt",
-            "closedAt"
+            "closedAt",
+            "tenantId"
         ]
     });
     if (!protocol) {
         throw new AppError_1.default("Protocol not found", 404);
     }
-    return res.json(protocol);
+    const systemTitle = yield Setting_1.default.findOne({
+        where: { key: "systemTitle", tenantId: protocol.tenantId }
+    });
+    const systemLogo = yield Setting_1.default.findOne({
+        where: { key: "systemLogo", tenantId: protocol.tenantId }
+    });
+    const response = Object.assign(Object.assign({}, protocol.toJSON()), { tenantConfig: {
+            systemTitle: systemTitle === null || systemTitle === void 0 ? void 0 : systemTitle.value,
+            systemLogo: systemLogo === null || systemLogo === void 0 ? void 0 : systemLogo.value
+        } });
+    return res.json(response);
 });
 exports.show = show;

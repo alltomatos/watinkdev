@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.waitForContactEnrichment = void 0;
 const socket_1 = require("../../libs/socket");
 const Contact_1 = __importDefault(require("../../models/Contact"));
+const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const uuid_1 = require("uuid");
 // import axios from "axios";
@@ -191,21 +192,24 @@ const CreateOrUpdateContactService = (_a) => __awaiter(void 0, [_a], void 0, fun
             ? (contact.name === contact.number || !contact.profilePicUrl)
             : (!contact.profilePicUrl || (!contact.lid && !((_c = contact.number) === null || _c === void 0 ? void 0 : _c.includes("@lid")) && !contact.name));
         if (shouldSync) {
-            yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${sessionId}.contact.sync`, {
-                id: (0, uuid_1.v4)(),
-                timestamp: Date.now(),
-                tenantId,
-                type: "contact.sync",
-                payload: {
-                    sessionId,
-                    contactId: contact.id,
-                    number: contact.number,
-                    lid: contact.lid || undefined,
-                    isGroup
-                }
-            });
-            yield (0, exports.waitForContactEnrichment)(contact.id, isGroup, tenantId);
-            yield contact.reload();
+            const whatsapp = yield Whatsapp_1.default.findByPk(sessionId);
+            if (whatsapp) {
+                yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${sessionId}.${whatsapp.engineType}.contact.sync`, {
+                    id: (0, uuid_1.v4)(),
+                    timestamp: Date.now(),
+                    tenantId,
+                    type: "contact.sync",
+                    payload: {
+                        sessionId,
+                        contactId: contact.id,
+                        number: contact.number,
+                        lid: contact.lid || undefined,
+                        isGroup
+                    }
+                });
+                yield (0, exports.waitForContactEnrichment)(contact.id, isGroup, tenantId);
+                yield contact.reload();
+            }
         }
     }
     return contact;

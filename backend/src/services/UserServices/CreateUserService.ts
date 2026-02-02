@@ -16,6 +16,7 @@ interface Request {
   groupIds?: number[];
   groupId?: number;
   tenantId?: number | string;
+  roleIds?: number[];
 }
 
 import Tenant from "../../models/Tenant";
@@ -38,7 +39,8 @@ const CreateUserService = async ({
   whatsappId,
   groupIds = [],
   groupId,
-  tenantId
+  tenantId,
+  roleIds = []
 }: Request): Promise<Response> => {
   let finalGroupIds = [...groupIds];
   if (groupId && !finalGroupIds.includes(groupId)) {
@@ -128,6 +130,10 @@ const CreateUserService = async ({
 
   await user.$set("queues", queueIds);
   await user.$set("groups", finalGroupIds, { through: { tenantId } });
+  
+  if (roleIds && roleIds.length > 0) {
+    await user.$set("roles", roleIds, { through: { tenantId } });
+  }
 
   // Send Verification Email (Async)
   if (tenantId && !emailVerified) {

@@ -55,7 +55,7 @@ const PluginInstallation_1 = __importDefault(require("../../models/PluginInstall
 const Plugin_1 = __importDefault(require("../../models/Plugin"));
 const sequelize_1 = require("sequelize");
 const SendVerificationEmailService_1 = __importDefault(require("./SendVerificationEmailService"));
-const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ email, password, name, queueIds = [], whatsappId, groupIds = [], groupId, tenantId }) {
+const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ email, password, name, queueIds = [], whatsappId, groupIds = [], groupId, tenantId, roleIds = [] }) {
     let finalGroupIds = [...groupIds];
     if (groupId && !finalGroupIds.includes(groupId)) {
         finalGroupIds.push(groupId);
@@ -132,6 +132,9 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
     }, { include: ["queues", "whatsapp"] });
     yield user.$set("queues", queueIds);
     yield user.$set("groups", finalGroupIds, { through: { tenantId } });
+    if (roleIds && roleIds.length > 0) {
+        yield user.$set("roles", roleIds, { through: { tenantId } });
+    }
     // Send Verification Email (Async)
     if (tenantId && !emailVerified) {
         const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";

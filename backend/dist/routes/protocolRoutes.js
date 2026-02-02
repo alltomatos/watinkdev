@@ -61,5 +61,5 @@ protocolRoutes.delete("/protocols/:protocolId/attachments/:attachmentId", isAuth
 protocolRoutes.get("/public/protocols/:token", ProtocolPublicController.show);
 protocolRoutes.get("/public/protocols/:token/attachments", ProtocolAttachmentController.publicIndex);
 // Special route for creating protocol from contact drawer
-protocolRoutes.post("/contacts/:contactId/protocols", isAuth_1.default, ProtocolController.createFromContact);
+protocolRoutes.post("/contacts/:contactId/protocols", isAuth_1.default, (0, checkPermission_1.default)("helpdesk:write"), ProtocolController.createFromContact);
 exports.default = protocolRoutes;

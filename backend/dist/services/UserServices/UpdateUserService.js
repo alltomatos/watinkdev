@@ -61,7 +61,7 @@ const UpdateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ u
         email: Yup.string().email(),
         password: Yup.string()
     });
-    const { email, password, name, queueIds = [], whatsappId, groupIds = [], groupId, profileImage } = userData;
+    const { email, password, name, queueIds = [], whatsappId, groupIds = [], groupId, profileImage, roleIds } = userData;
     console.log("UpdateUserService: Payload received", { userId, groupId, groupIds });
     // Compatibility: Frontend sends groupId (singular) but backend expects groupIds (plural)
     const finalGroupIds = [...groupIds];
@@ -90,6 +90,10 @@ const UpdateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ u
         yield user.$set("queues", queueIds);
         console.log("UpdateUserService: Setting groups...", finalGroupIds);
         yield user.$set("groups", finalGroupIds, { through: { tenantId: requestUser.tenantId } });
+        if (roleIds) {
+            console.log("UpdateUserService: Setting roles...", roleIds);
+            yield user.$set("roles", roleIds, { through: { tenantId: requestUser.tenantId } });
+        }
         // Invalidate Permission Cache
         console.log("UpdateUserService: Invalidating cache...");
         const redis = RedisService_1.RedisService.getInstance();

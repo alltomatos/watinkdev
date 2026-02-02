@@ -34,26 +34,9 @@ const useAuth = () => {
 		},
 		async error => {
 			const originalRequest = error.config;
-			if (error?.response?.status === 403 && !originalRequest._retry) {
-				originalRequest._retry = true;
 
-				try {
-					const { data } = await api.post("/auth/refresh_token");
-					if (data) {
-						// Detect where the token was and update it there
-						if (localStorage.getItem("token")) {
-							localStorage.setItem("token", data.token); // JSON.stringify removed
-						} else {
-							sessionStorage.setItem("token", data.token); // JSON.stringify removed
-						}
+			// 403 logic removed: Forbidden != Expired. Do not refresh.
 
-						api.defaults.headers.Authorization = `Bearer ${data.token}`;
-					}
-					return api(originalRequest);
-				} catch (err) {
-					console.error("RefreshToken failed", err);
-				}
-			}
 			if (error?.response?.status === 401) {
 				localStorage.removeItem("token");
 				sessionStorage.removeItem("token");

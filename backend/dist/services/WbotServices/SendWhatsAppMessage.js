@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const uuid_1 = require("uuid");
 const AppError_1 = __importDefault(require("../../errors/AppError"));
+const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const Ticket_1 = __importDefault(require("../../models/Ticket"));
 const Mustache_1 = __importDefault(require("../../helpers/Mustache"));
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
@@ -84,13 +85,14 @@ const SendWhatsAppMessage = (_a) => __awaiter(void 0, [_a], void 0, function* ({
         // Determine Routing Key based on Engine Type
         let engineType = (_c = ticket.whatsapp) === null || _c === void 0 ? void 0 : _c.engineType;
         if (!engineType) {
-            const whatsapp = yield ticket.$get("whatsapp");
+            const whatsapp = yield Whatsapp_1.default.findByPk(ticket.whatsappId);
             engineType = whatsapp === null || whatsapp === void 0 ? void 0 : whatsapp.engineType;
         }
-        let routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.message.send.text`;
-        if (engineType === "whatsmeow") {
-            routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.whatsmeow.message.send.text`;
+        if (!engineType) {
+            // Default to whaileys if not found (legacy fallback)
+            engineType = "whaileys";
         }
+        const routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType}.message.send.text`;
         yield RabbitMQService_1.default.publishCommand(routingKey, command);
         yield ticket.update({ lastMessage: body });
         return message;

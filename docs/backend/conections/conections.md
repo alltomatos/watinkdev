@@ -36,7 +36,7 @@ O RabbitMQ é o backbone de comunicação entre o Backend e o Engine Standard (W
 1.  **Publicação de Comandos (`wbot.commands`):**
     *   O Backend atua como **Produtor**, enviando comandos para o Engine.
     *   Exemplos: `message.send`, `session.start`.
-    *   Routing Key: `wbot.<tenantId>.<sessionId>.<action>`
+    *   Routing Key: `wbot.<tenantId>.<sessionId>.<engineType>.<action>`
 
 2.  **Consumo de Eventos (`wbot.events`):**
     *   O Backend atua como **Consumidor** através do `EventListener.ts`.

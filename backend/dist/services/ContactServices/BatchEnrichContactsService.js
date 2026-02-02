@@ -13,6 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Contact_1 = __importDefault(require("../../models/Contact"));
+const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const sequelize_1 = require("sequelize");
 const logger_1 = require("../../utils/logger");
@@ -41,11 +42,16 @@ const BatchEnrichContactsService = (tenantId) => __awaiter(void 0, void 0, void 
             limit: 1000 // Batch limit to avoid overload
         });
         logger_1.logger.info(`[BatchEnrich] Found ${contacts.length} candidates for enrichment for tenant ${tenantId}.`);
+        const whatsapp = yield Whatsapp_1.default.findOne({ where: { tenantId, status: "CONNECTED" } });
+        if (!whatsapp) {
+            logger_1.logger.warn(`[BatchEnrich] No connected WhatsApp session found for tenant ${tenantId}. Aborting.`);
+            return { count: 0 };
+        }
         for (const contact of contacts) {
             if (!contact.number)
                 continue;
             try {
-                yield RabbitMQService_1.default.publishCommand("wbot.global.contact.sync", {
+                yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`, {
                     id: (0, uuid_1.v4)(),
                     timestamp: Date.now(),
                     type: "contact.sync",
@@ -53,7 +59,7 @@ const BatchEnrichContactsService = (tenantId) => __awaiter(void 0, void 0, void 
                         contactId: contact.id,
                         number: contact.number,
                         lid: undefined, // ensure we ask for it
-                        sessionId: 1 // TODO: Need specific sessionId logic. Ideally 0 for "any"
+                        sessionId: whatsapp.id
                     },
                     tenantId
                 });

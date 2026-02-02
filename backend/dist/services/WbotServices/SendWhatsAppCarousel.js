@@ -14,11 +14,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const uuid_1 = require("uuid");
 const AppError_1 = __importDefault(require("../../errors/AppError"));
+const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const Message_1 = __importDefault(require("../../models/Message"));
 const socket_1 = require("../../libs/socket");
 const GenerateWAMessageId_1 = __importDefault(require("../../helpers/GenerateWAMessageId"));
 const SendWhatsAppCarousel = (_a) => __awaiter(void 0, [_a], void 0, function* ({ ticket, body, cards }) {
+    var _b;
     try {
         if (!ticket.whatsappId) {
             throw new AppError_1.default("ERR_TICKET_WRONG_WHATSAPP_ID");
@@ -76,7 +78,15 @@ const SendWhatsAppCarousel = (_a) => __awaiter(void 0, [_a], void 0, function* (
                 }))
             }
         };
-        yield RabbitMQService_1.default.publishCommand(`wbot.${ticket.tenantId}.${ticket.whatsappId}.message.send.carousel`, command);
+        // Determine Engine Type
+        let engineType = (_b = ticket.whatsapp) === null || _b === void 0 ? void 0 : _b.engineType;
+        if (!engineType) {
+            const whatsapp = yield Whatsapp_1.default.findByPk(ticket.whatsappId);
+            engineType = whatsapp === null || whatsapp === void 0 ? void 0 : whatsapp.engineType;
+        }
+        if (!engineType)
+            engineType = "whaileys";
+        yield RabbitMQService_1.default.publishCommand(`wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType}.message.send.carousel`, command);
         yield ticket.update({ lastMessage: body });
         return message;
     }

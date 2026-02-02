@@ -187,8 +187,10 @@ export const syncHistory = async (
     }
   };
 
+  const engineType = ticket.whatsapp.engineType || "whaileys";
+
   await RabbitMQService.publishCommand(
-    `wbot.${tenantId}.${ticket.whatsappId}.history.sync`,
+    `wbot.${tenantId}.${ticket.whatsappId}.${engineType}.history.sync`,
     command
   );
 

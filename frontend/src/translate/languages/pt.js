@@ -321,6 +321,7 @@ const messages = {
           password: "Senha",
           profile: "Perfil",
           group: "Função",
+          role: "Função",
           whatsapp: "Conexão Padrão",
         },
         buttons: {

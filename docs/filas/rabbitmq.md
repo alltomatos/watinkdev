@@ -85,7 +85,9 @@ interface Envelope {
 
 ## Tipos de Mensagens (Routing Key Patterns)
 
-A estrutura das Routing Keys segue o padrão: `wbot.<tenantId>.<sessionId>.<action>`
+A estrutura das Routing Keys segue o padrão: `wbot.<tenantId>.<sessionId>.<engineType>.<action>`
+
+Onde `<engineType>` pode ser: `whaileys`, `whatsmeow`, `papi`, etc.
 
 ### Comandos (Backend -> Engine)
 

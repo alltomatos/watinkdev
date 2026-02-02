@@ -51,6 +51,7 @@ const Contact_1 = __importDefault(require("../../models/Contact"));
 const User_1 = __importDefault(require("../../models/User"));
 const Ticket_1 = __importDefault(require("../../models/Ticket"));
 const Setting_1 = __importDefault(require("../../models/Setting"));
+const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const date_fns_1 = require("date-fns");
 const uuid_1 = require("uuid");
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
@@ -60,6 +61,7 @@ const generateProtocolNumber = () => {
     return `${date}-${random}`;
 };
 const CreateProtocolService = (data, createdByUserId) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     const protocolNumber = generateProtocolNumber();
     let dueDate = data.dueDate;
     // SLA Logic
@@ -94,7 +96,13 @@ const CreateProtocolService = (data, createdByUserId) => __awaiter(void 0, void 
         include: [
             { model: Contact_1.default, as: "contact" },
             { model: User_1.default, as: "user" },
-            { model: Ticket_1.default, as: "ticket" },
+            {
+                model: Ticket_1.default,
+                as: "ticket",
+                include: [
+                    { model: Whatsapp_1.default, as: "whatsapp" }
+                ]
+            },
             { model: ProtocolHistory_1.default, as: "history", include: [{ model: User_1.default, as: "user" }] }
         ]
     });
@@ -145,7 +153,8 @@ const CreateProtocolService = (data, createdByUserId) => __awaiter(void 0, void 
                         ticketId: ticket.id
                     }
                 };
-                yield RabbitMQService_1.default.publishCommand(`wbot.${data.tenantId}.${ticket.whatsappId}.message.send.text`, command);
+                const engineType = ((_a = ticket.whatsapp) === null || _a === void 0 ? void 0 : _a.engineType) || "whaileys";
+                yield RabbitMQService_1.default.publishCommand(`wbot.${data.tenantId}.${ticket.whatsappId}.${engineType}.message.send.text`, command);
             }
         }
         catch (err) {

@@ -14,12 +14,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const uuid_1 = require("uuid");
 const AppError_1 = __importDefault(require("../../errors/AppError"));
+const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const Mustache_1 = __importDefault(require("../../helpers/Mustache"));
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const Message_1 = __importDefault(require("../../models/Message"));
 const GenerateWAMessageId_1 = __importDefault(require("../../helpers/GenerateWAMessageId"));
 const socket_1 = require("../../libs/socket");
 const SendWhatsAppUrlButton = (_a) => __awaiter(void 0, [_a], void 0, function* ({ body, ticket, footer, title, url, buttonText }) {
+    var _b;
     try {
         const formattedBody = (0, Mustache_1.default)(body, ticket.contact);
         const id = (0, uuid_1.v4)();
@@ -75,7 +77,15 @@ const SendWhatsAppUrlButton = (_a) => __awaiter(void 0, [_a], void 0, function* 
             type: "message.send.interactive",
             payload
         };
-        const routingKey = `wbot.${ticket.tenantId}.${sessionId}.message.send.interactive`;
+        // Determine Engine Type
+        let engineType = (_b = ticket.whatsapp) === null || _b === void 0 ? void 0 : _b.engineType;
+        if (!engineType) {
+            const whatsapp = yield Whatsapp_1.default.findByPk(ticket.whatsappId);
+            engineType = whatsapp === null || whatsapp === void 0 ? void 0 : whatsapp.engineType;
+        }
+        if (!engineType)
+            engineType = "whaileys";
+        const routingKey = `wbot.${ticket.tenantId}.${sessionId}.${engineType}.message.send.interactive`;
         yield RabbitMQService_1.default.publishCommand(routingKey, command);
         yield ticket.update({ lastMessage: body });
         return message;

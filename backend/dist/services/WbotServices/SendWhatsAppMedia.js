@@ -17,6 +17,7 @@ const path_1 = __importDefault(require("path"));
 const upload_1 = __importDefault(require("../../config/upload"));
 const uuid_1 = require("uuid");
 const AppError_1 = __importDefault(require("../../errors/AppError"));
+const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const Mustache_1 = __importDefault(require("../../helpers/Mustache"));
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const Message_1 = __importDefault(require("../../models/Message"));
@@ -81,22 +82,15 @@ const SendWhatsAppMedia = (_a) => __awaiter(void 0, [_a], void 0, function* ({ m
             }
         };
         // Determine Routing Key based on Engine Type
-        // If ticket.whatsapp is not loaded, we might need to fetch or rely on caller? 
-        // Ideally caller should load it. If not, we fetch.
         let engineType = (_b = ticket.whatsapp) === null || _b === void 0 ? void 0 : _b.engineType;
         if (!engineType) {
-            // Try safe load if needed, or default to whaileys
-            // const whatsapp = await Whatsapp.findByPk(ticket.whatsappId);
-            // engineType = whatsapp?.engineType;
-            // Assuming default if missing for now to avoid perf hit if not strictly needed
-            // But for reliability:
-            const whatsapp = yield ticket.$get("whatsapp");
+            const whatsapp = yield Whatsapp_1.default.findByPk(ticket.whatsappId);
             engineType = whatsapp === null || whatsapp === void 0 ? void 0 : whatsapp.engineType;
         }
-        let routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.message.send.media`;
-        if (engineType === "whatsmeow") {
-            routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.whatsmeow.message.send.media`;
+        if (!engineType) {
+            engineType = "whaileys";
         }
+        const routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType}.message.send.media`;
         yield RabbitMQService_1.default.publishCommand(routingKey, command);
         yield ticket.update({ lastMessage: body || media.originalname });
         return message;

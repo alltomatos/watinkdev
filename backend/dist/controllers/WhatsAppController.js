@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.remove = exports.update = exports.show = exports.store = exports.index = void 0;
+exports.testPapiConnection = exports.remove = exports.update = exports.show = exports.store = exports.index = void 0;
 const socket_1 = require("../libs/socket");
 const AppError_1 = __importDefault(require("../errors/AppError"));
 const CreateWhatsAppService_1 = __importDefault(require("../services/WhatsappService/CreateWhatsAppService"));
@@ -21,6 +21,7 @@ const ListWhatsAppsService_1 = __importDefault(require("../services/WhatsappServ
 const ShowWhatsAppService_1 = __importDefault(require("../services/WhatsappService/ShowWhatsAppService"));
 const UpdateWhatsAppService_1 = __importDefault(require("../services/WhatsappService/UpdateWhatsAppService"));
 const Plugin_1 = __importDefault(require("../models/Plugin"));
+const axios_1 = __importDefault(require("axios"));
 const PluginInstallation_1 = __importDefault(require("../models/PluginInstallation"));
 const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { tenantId } = req.user;
@@ -162,3 +163,20 @@ const remove = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     return res.status(200).json({ message: "Whatsapp deleted." });
 });
 exports.remove = remove;
+const testPapiConnection = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { papiUrl, papiKey } = req.body;
+    try {
+        // PAPI usually has a status endpoint or just listing instances
+        yield axios_1.default.get(`${papiUrl}/api/instances`, {
+            headers: {
+                "x-api-key": papiKey
+            },
+            timeout: 5000
+        });
+        return res.status(200).json({ message: "Connection successful" });
+    }
+    catch (err) {
+        return res.status(400).json({ error: "Connection failed", details: err.message });
+    }
+});
+exports.testPapiConnection = testPapiConnection;
