@@ -1,6 +1,6 @@
 services:
   backend:
-    image: watink/backend:1.3.461
+    image: watink/backend:1.3.462
     environment:
       - DB_DIALECT=postgres
       - DB_HOST=watink_postgres # Renomeado para garantir que conecte no banco local desta stack
@@ -82,7 +82,7 @@ services:
           - node.role == manager
 
   flow-worker:
-    image: watink/backend:1.3.461
+    image: watink/backend:1.3.462
     command: [ "node", "dist/flow-worker.js" ]
     environment:
       - DB_DIALECT=postgres
