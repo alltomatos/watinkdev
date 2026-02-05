@@ -37,6 +37,46 @@ services:
         - "traefik.http.routers.papi-webhook.middlewares=papi-strip"
         - "traefik.http.middlewares.papi-strip.stripPrefix.prefixes=/plugins/papi"
 
+# ... (outros serviços como plugin-manager, engine-papi, etc.)
+
+  plugin-helpdesk:
+    image: watink/plugin-helpdesk:2.0.0
+    build:
+      context: ./plugins/helpdesk
+      dockerfile: ./Dockerfile
+    environment:
+      - PORT=3003
+      - JWT_SECRET=watink_secret_key_2026
+      # Usa as mesmas credenciais do Core
+      - DB_HOST=postgres
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=watink
+      # URL do RabbitMQ (se o helpdesk usar filas)
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    networks:
+      - watink_network
+      - watink_proxy
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        # Rede que o Traefik usa para falar com os containers
+        - "traefik.docker.network=watink_watink_proxy"
+        
+        # ROTEAMENTO MÁGICO:
+        # Intercepta qualquer chamada para /api/protocols ou /api/activities
+        # e joga para este container, ignorando o Backend Core.
+        - "traefik.http.routers.helpdesk.rule=Host(`${FRONTEND_URL_HOST:-app.localhost}`) && (PathPrefix(`/api/protocols`) || PathPrefix(`/api/activities`))"
+        - "traefik.http.routers.helpdesk.entrypoints=web,websecure"
+        - "traefik.http.routers.helpdesk.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.helpdesk.middlewares=helpdesk-strip"
+        - "traefik.http.middlewares.helpdesk-strip.stripprefix.prefixes=/api"
+        
+        # Aponta para a porta interna do Node.js neste container
+        - "traefik.http.services.helpdesk.loadbalancer.server.port=3003"
+
 
   plugin-smtp:
     image: watink/plugin-smtp:1.0.8
