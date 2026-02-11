@@ -55,7 +55,7 @@ pluginRoutes.use(
     checkPermission("marketplace:read"),
     createProxyMiddleware({
         // The target is the internal docker service name of the go plugin manager
-        target: process.env.PLUGIN_MANAGER_URL || "http://plugin-manager:3005",
+        target: process.env.PLUGIN_MANAGER_URL || "http://plugin-manager:8081",
         changeOrigin: true,
         pathRewrite: {
             "^/plugins": "", // remove /plugins prefix when forwarding

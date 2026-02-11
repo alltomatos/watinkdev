@@ -3,12 +3,11 @@ import { v4 as uuidv4 } from "uuid";
 import RabbitMQService from "../services/RabbitMQService";
 import { Envelope } from "../microservice/contracts";
 import ShowTicketService from "../services/TicketServices/ShowTicketService";
-import AppError from "../errors/AppError";
 
 export const sendButtons = async (req: Request, res: Response): Promise<Response> => {
     const { tenantId } = req.user;
     const { ticketId, text, footer, buttons, imageUrl } = req.body;
-    const ticket = await ShowTicketService(ticketId);
+    const ticket = await ShowTicketService(ticketId, tenantId);
     const contactNumber = ticket.contact.number.replace(/\D/g, "");
 
     const command: Envelope = {
@@ -26,14 +25,14 @@ export const sendButtons = async (req: Request, res: Response): Promise<Response
         }
     };
 
-    await RabbitMQService.publishCommand(`wbot.1.${ticket.whatsappId}.message.send.buttons`, command);
+    await RabbitMQService.publishCommand(`wbot.${tenantId}.${ticket.whatsappId}.message.send.buttons`, command);
     return res.status(200).json({ message: "Command sent to queue" });
 };
 
 export const sendList = async (req: Request, res: Response): Promise<Response> => {
     const { tenantId } = req.user;
     const { ticketId, text, footer, buttonText, sections } = req.body;
-    const ticket = await ShowTicketService(ticketId);
+    const ticket = await ShowTicketService(ticketId, tenantId);
     const contactNumber = ticket.contact.number.replace(/\D/g, "");
 
     const command: Envelope = {
@@ -51,14 +50,14 @@ export const sendList = async (req: Request, res: Response): Promise<Response> =
         }
     };
 
-    await RabbitMQService.publishCommand(`wbot.1.${ticket.whatsappId}.message.send.list`, command);
+    await RabbitMQService.publishCommand(`wbot.${tenantId}.${ticket.whatsappId}.message.send.list`, command);
     return res.status(200).json({ message: "Command sent to queue" });
 };
 
 export const sendPoll = async (req: Request, res: Response): Promise<Response> => {
     const { tenantId } = req.user;
     const { ticketId, name, options, selectableCount } = req.body;
-    const ticket = await ShowTicketService(ticketId);
+    const ticket = await ShowTicketService(ticketId, tenantId);
     const contactNumber = ticket.contact.number.replace(/\D/g, "");
 
     const command: Envelope = {
@@ -75,14 +74,14 @@ export const sendPoll = async (req: Request, res: Response): Promise<Response> =
         }
     };
 
-    await RabbitMQService.publishCommand(`wbot.1.${ticket.whatsappId}.message.send.poll`, command);
+    await RabbitMQService.publishCommand(`wbot.${tenantId}.${ticket.whatsappId}.message.send.poll`, command);
     return res.status(200).json({ message: "Command sent to queue" });
 };
 
 export const sendCarousel = async (req: Request, res: Response): Promise<Response> => {
     const { tenantId } = req.user;
     const { ticketId, text, footer, cards } = req.body;
-    const ticket = await ShowTicketService(ticketId);
+    const ticket = await ShowTicketService(ticketId, tenantId);
     const contactNumber = ticket.contact.number.replace(/\D/g, "");
 
     const command: Envelope = {
@@ -99,6 +98,6 @@ export const sendCarousel = async (req: Request, res: Response): Promise<Respons
         }
     };
 
-    await RabbitMQService.publishCommand(`wbot.1.${ticket.whatsappId}.message.send.carousel`, command);
+    await RabbitMQService.publishCommand(`wbot.${tenantId}.${ticket.whatsappId}.message.send.carousel`, command);
     return res.status(200).json({ message: "Command sent to queue" });
 };

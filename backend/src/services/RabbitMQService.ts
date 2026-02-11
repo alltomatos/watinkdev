@@ -36,6 +36,22 @@ class RabbitMQService {
     }
   }
 
+  private isValidEnvelope(raw: any): raw is Envelope {
+    return !!raw
+      && typeof raw === "object"
+      && typeof raw.type === "string"
+      && typeof raw.timestamp === "number"
+      && (typeof raw.tenantId === "string" || typeof raw.tenantId === "number")
+      && Object.prototype.hasOwnProperty.call(raw, "payload");
+  }
+
+  private validateEnvelopeOrThrow(raw: any): Envelope {
+    if (!this.isValidEnvelope(raw)) {
+      throw new Error("Invalid AMQP envelope contract");
+    }
+    return raw as Envelope;
+  }
+
   private async setupExchanges(): Promise<void> {
     if (!this.channel) return;
 
@@ -50,14 +66,14 @@ class RabbitMQService {
     await this.channel.bindQueue(goQueue.queue, "wbot.commands", "wbot.*.*.whatsmeow.#");
   }
 
-  async publishCommand(routingKey: string, message: Envelope, exchange: string = "wbot.commands"): Promise<void> {
+  async publishCommand(routingKey: string, message: Envelope, exchange: string = "wbot.commands"): Promise<boolean> {
     if (!this.channel) {
       logger.warn("Cannot publish command, channel is closed");
-      return;
+      return false;
     }
 
     logger.info(`[RabbitMQ] Publishing command to ${routingKey} on exchange ${exchange}`);
-    this.channel.publish(
+    return this.channel.publish(
       exchange,
       routingKey,
       Buffer.from(JSON.stringify(message))
@@ -90,7 +106,8 @@ class RabbitMQService {
     this.channel.consume(q.queue, async (msg: ConsumeMessage | null) => {
       if (msg) {
         try {
-          const content: Envelope = JSON.parse(msg.content.toString());
+          const raw = JSON.parse(msg.content.toString());
+          const content = this.validateEnvelopeOrThrow(raw);
           await handler(content);
           this.channel?.ack(msg);
         } catch (error) {
@@ -113,7 +130,8 @@ class RabbitMQService {
     this.channel.consume(q.queue, async (msg: ConsumeMessage | null) => {
       if (msg) {
         try {
-          const content: Envelope = JSON.parse(msg.content.toString());
+          const raw = JSON.parse(msg.content.toString());
+          const content = this.validateEnvelopeOrThrow(raw);
           await handler(content);
           this.channel?.ack(msg);
         } catch (error) {

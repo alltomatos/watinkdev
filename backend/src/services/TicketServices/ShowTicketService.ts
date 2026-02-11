@@ -6,8 +6,12 @@ import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
 import Tag from "../../models/Tag";
 
-const ShowTicketService = async (id: string | number): Promise<Ticket> => {
-  const ticket = await Ticket.findByPk(id, {
+const ShowTicketService = async (id: string | number, tenantId?: string | number): Promise<Ticket> => {
+  const where: any = { id };
+  if (tenantId) where.tenantId = tenantId;
+
+  const ticket = await Ticket.findOne({
+    where,
     include: [
       {
         model: Contact,

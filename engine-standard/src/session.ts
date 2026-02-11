@@ -32,6 +32,47 @@ interface WhaileysSession {
 }
 
 class SessionManager {
+  private isValidEnvelope(envelope: any): envelope is Envelope {
+    return !!envelope
+      && typeof envelope === "object"
+      && typeof envelope.type === "string"
+      && typeof envelope.timestamp === "number"
+      && (typeof envelope.tenantId === "string" || typeof envelope.tenantId === "number")
+      && Object.prototype.hasOwnProperty.call(envelope, "payload");
+  }
+
+  private validateCommandPayload(type: string, payload: any): boolean {
+    if (!payload || typeof payload !== "object") return false;
+
+    switch (type) {
+      case "message.send.text":
+        return typeof payload.sessionId === "number"
+          && typeof payload.to === "string"
+          && typeof payload.body === "string";
+      case "message.send.media":
+        return typeof payload.sessionId === "number"
+          && typeof payload.to === "string"
+          && !!payload.media
+          && typeof payload.media.mimetype === "string"
+          && typeof payload.media.filename === "string"
+          && typeof payload.media.data === "string";
+      case "session.start":
+      case "session.stop":
+      case "message.send.buttons":
+      case "message.send.list":
+      case "message.send.poll":
+      case "message.send.template":
+      case "message.send.interactive":
+      case "message.send.carousel":
+      case "contact.sync":
+      case "message.markAsRead":
+      case "contact.import":
+      case "history.sync":
+        return true;
+      default:
+        return false;
+    }
+  }
   private sessions: Map<number, WhaileysSession> = new Map();
   private retries: Map<number, number> = new Map();
   private manuallyDisconnected: Set<number> = new Set();
@@ -54,6 +95,16 @@ class SessionManager {
   }
 
   async handleCommand(envelope: Envelope) {
+    if (!this.isValidEnvelope(envelope)) {
+      logger.error(`[ContractValidation] Invalid command envelope received: ${JSON.stringify(envelope)}`);
+      return;
+    }
+
+    if (!this.validateCommandPayload(envelope.type, envelope.payload)) {
+      logger.error(`[ContractValidation] Invalid payload for command type=${envelope.type}`);
+      return;
+    }
+
     logger.info(`Received command: ${envelope.type}`);
 
     switch (envelope.type as CommandType) {
@@ -64,28 +115,28 @@ class SessionManager {
         await this.stopSession(envelope.payload.sessionId, envelope.tenantId);
         break;
       case "message.send.text":
-        await this.sendText(envelope.payload as SendTextPayload);
+        await this.sendText(envelope.payload as SendTextPayload, envelope.tenantId);
         break;
       case "message.send.media":
         await this.sendMedia(envelope.payload as SendMediaPayload, envelope.tenantId);
         break;
       case "message.send.buttons":
-        await this.sendButtons(envelope.payload as SendButtonsPayload);
+        await this.sendButtons(envelope.payload as SendButtonsPayload, envelope.tenantId);
         break;
       case "message.send.list":
-        await this.sendList(envelope.payload as SendListPayload);
+        await this.sendList(envelope.payload as SendListPayload, envelope.tenantId);
         break;
       case "message.send.poll":
-        await this.sendPoll(envelope.payload as SendPollPayload);
+        await this.sendPoll(envelope.payload as SendPollPayload, envelope.tenantId);
         break;
       case "message.send.template":
-        await this.sendTemplate(envelope.payload as SendTemplatePayload);
+        await this.sendTemplate(envelope.payload as SendTemplatePayload, envelope.tenantId);
         break;
       case "message.send.interactive":
-        await this.sendInteractive(envelope.payload as SendInteractivePayload);
+        await this.sendInteractive(envelope.payload as SendInteractivePayload, envelope.tenantId);
         break;
       case "message.send.carousel":
-        await this.sendCarousel(envelope.payload as SendCarouselPayload);
+        await this.sendCarousel(envelope.payload as SendCarouselPayload, envelope.tenantId);
         break;
       case "contact.sync":
         await this.syncContact(envelope.payload as SyncContactPayload, envelope.tenantId);
@@ -213,7 +264,7 @@ class SessionManager {
         }
       };
 
-      await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.contact.update`, updateEvent);
+      await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId ?? -1}.contact.update`, updateEvent);
     } catch (error) {
       logger.error(`Error syncing contact ${payload.number}:`, error);
     }
@@ -823,7 +874,7 @@ class SessionManager {
                 isGroup: jid.endsWith("@g.us")
               }
             };
-            await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.contact.update`, updateEvent);
+            await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId ?? -1}.contact.update`, updateEvent);
           }
         }
       });
@@ -854,7 +905,7 @@ class SessionManager {
               isGroup: true
             }
           };
-          await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.contact.update`, updateEvent);
+          await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId ?? -1}.contact.update`, updateEvent);
         }
       });
 
@@ -923,7 +974,7 @@ class SessionManager {
     }
   }
 
-  private async validateAndCorrectJid(session: WhaileysSession, jid: string, lid: string | undefined, tenantId: string | number): Promise<string> {
+  private async validateAndCorrectJid(session: WhaileysSession, jid: string, lid: string | undefined, tenantId: string | number, sessionId?: number): Promise<string> {
     if (jid.endsWith("@g.us")) return jid;
 
     try {
@@ -948,7 +999,7 @@ class SessionManager {
                 number: correctJid.split("@")[0]
               }
             };
-            await this.rabbitmq.publishEvent(`wbot.${tenantId}.${tenantId}.contact.update`, updateEvent);
+            await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId ?? -1}.contact.update`, updateEvent);
           }
 
           return correctJid;
@@ -985,7 +1036,7 @@ class SessionManager {
   }
 
   // Re-writing the entire method to better handle try-catch and ID availability
-  private async sendText(payload: SendTextPayload) {
+  private async sendText(payload: SendTextPayload, tenantId: string | number) {
     const session = this.sessions.get(payload.sessionId);
     if (!session) {
       // If session not found, try to emit error if we have messageId
@@ -993,7 +1044,7 @@ class SessionManager {
         const ackEvent: Envelope = {
           id: uuidv4(),
           timestamp: Date.now(),
-          tenantId: "1", // Fallback if session missing
+          tenantId,
           type: "message.ack",
           payload: {
             sessionId: payload.sessionId,
@@ -1001,14 +1052,14 @@ class SessionManager {
             ack: 5 // Error - Session not found
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.*.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending message`);
       return;
     }
 
     try {
-      const jid = await this.validateAndCorrectJid(session, payload.to, payload.lid, session.tenantId);
+      const jid = await this.validateAndCorrectJid(session, payload.to, payload.lid, session.tenantId, payload.sessionId);
 
       logger.info(`[sendText] Sending text to ${jid}: ${payload.body} (Ref Message ID: ${payload.messageId})`);
 
@@ -1384,7 +1435,7 @@ class SessionManager {
     }
 
     try {
-      const jid = await this.validateAndCorrectJid(session, payload.to, payload.lid, session.tenantId);
+      const jid = await this.validateAndCorrectJid(session, payload.to, payload.lid, session.tenantId, payload.sessionId);
 
       logger.info(`Sending media to ${jid}: ${payload.media.filename}`);
 
@@ -1560,14 +1611,14 @@ class SessionManager {
       await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.history.status`, errorEvent);
     }
   }
-  private async sendButtons(payload: SendButtonsPayload) {
+  private async sendButtons(payload: SendButtonsPayload, tenantId: string | number) {
     const session = this.sessions.get(payload.sessionId);
     if (!session) {
       if (payload.messageId) {
         const ackEvent: Envelope = {
           id: uuidv4(),
           timestamp: Date.now(),
-          tenantId: "1",
+          tenantId,
           type: "message.ack",
           payload: {
             sessionId: payload.sessionId,
@@ -1575,14 +1626,14 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.*.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending buttons`);
       return;
     }
 
     try {
-      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId);
+      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId, payload.sessionId);
 
       const buttons = payload.buttons.map(btn => ({
         buttonId: btn.buttonId,
@@ -1635,14 +1686,14 @@ class SessionManager {
     }
   }
 
-  private async sendList(payload: SendListPayload) {
+  private async sendList(payload: SendListPayload, tenantId: string | number) {
     const session = this.sessions.get(payload.sessionId);
     if (!session) {
       if (payload.messageId) {
         const ackEvent: Envelope = {
           id: uuidv4(),
           timestamp: Date.now(),
-          tenantId: "1",
+          tenantId,
           type: "message.ack",
           payload: {
             sessionId: payload.sessionId,
@@ -1650,14 +1701,14 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.*.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending list`);
       return;
     }
 
     try {
-      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId);
+      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId, payload.sessionId);
 
       const listMessage = {
         text: payload.text,
@@ -1699,14 +1750,14 @@ class SessionManager {
     }
   }
 
-  private async sendPoll(payload: SendPollPayload) {
+  private async sendPoll(payload: SendPollPayload, tenantId: string | number) {
     const session = this.sessions.get(payload.sessionId);
     if (!session) {
       if (payload.messageId) {
         const ackEvent: Envelope = {
           id: uuidv4(),
           timestamp: Date.now(),
-          tenantId: "1",
+          tenantId,
           type: "message.ack",
           payload: {
             sessionId: payload.sessionId,
@@ -1714,14 +1765,14 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.*.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending poll`);
       return;
     }
 
     try {
-      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId);
+      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId, payload.sessionId);
 
       const waMsgId = (payload.messageId && payload.messageId.startsWith("3EB0"))
         ? payload.messageId
@@ -1761,14 +1812,14 @@ class SessionManager {
     }
   }
 
-  private async sendTemplate(payload: SendTemplatePayload) {
+  private async sendTemplate(payload: SendTemplatePayload, tenantId: string | number) {
     const session = this.sessions.get(payload.sessionId);
     if (!session) {
       if (payload.messageId) {
         const ackEvent: Envelope = {
           id: uuidv4(),
           timestamp: Date.now(),
-          tenantId: "1",
+          tenantId,
           type: "message.ack",
           payload: {
             sessionId: payload.sessionId,
@@ -1776,14 +1827,14 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.*.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending template`);
       return;
     }
 
     try {
-      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId);
+      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId, payload.sessionId);
 
       const templateButtons = payload.buttons.map((btn: any, index: number) => {
         const base = { index: index + 1 };
@@ -1839,14 +1890,14 @@ class SessionManager {
     }
   }
 
-  private async sendInteractive(payload: SendInteractivePayload) {
+  private async sendInteractive(payload: SendInteractivePayload, tenantId: string | number) {
     const session = this.sessions.get(payload.sessionId);
     if (!session) {
       if (payload.messageId) {
         const ackEvent: Envelope = {
           id: uuidv4(),
           timestamp: Date.now(),
-          tenantId: "1",
+          tenantId,
           type: "message.ack",
           payload: {
             sessionId: payload.sessionId,
@@ -1854,14 +1905,14 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.*.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending interactive message`);
       return;
     }
 
     try {
-      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId);
+      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId, payload.sessionId);
 
       // Native Flow implementation for Interactive Message (Robust for URL buttons)
       const buttons = payload.buttons.map((btn: any) => {
@@ -1948,14 +1999,14 @@ class SessionManager {
     }
   }
 
-  private async sendCarousel(payload: SendCarouselPayload) {
+  private async sendCarousel(payload: SendCarouselPayload, tenantId: string | number) {
     const session = this.sessions.get(payload.sessionId);
     if (!session) {
       if (payload.messageId) {
         const ackEvent: Envelope = {
           id: uuidv4(),
           timestamp: Date.now(),
-          tenantId: "1",
+          tenantId,
           type: "message.ack",
           payload: {
             sessionId: payload.sessionId,
@@ -1963,14 +2014,14 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.*.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending carousel`);
       return;
     }
 
     try {
-      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId);
+      const jid = await this.validateAndCorrectJid(session, payload.to, undefined, session.tenantId, payload.sessionId);
 
       const cards = await Promise.all(payload.cards.map(async (card) => {
         const buttons = card.buttons.map(btn => {
