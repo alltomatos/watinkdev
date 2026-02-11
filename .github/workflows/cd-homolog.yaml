@@ -81,33 +81,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
         with:
-          host: ${{ secrets.HOMOL_SSH_HOST }}
-          username: ${{ secrets.HOMOL_SSH_USER }}
-          key: ${{ secrets.HOMOL_SSH_KEY }}
-          port: ${{ secrets.HOMOL_SSH_PORT || '22' }}
-          script: |
-            set -e
-            STACK_NAME=${{ secrets.HOMOL_STACK_NAME || 'watink' }}
-            BACKEND_SERVICE=${{ secrets.HOMOL_BACKEND_SERVICE || 'watink_backend' }}
-            FRONTEND_SERVICE=${{ secrets.HOMOL_FRONTEND_SERVICE || 'watink_frontend' }}
+          version: v1.30.0
 
-            echo "Logging in GHCR on target host..."
-            echo "${{ secrets.HOMOL_GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.HOMOL_GHCR_USER }}" --password-stdin
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_HOMOLOG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+          kubectl cluster-info
 
-            echo "Updating backend image..."
-            docker service update --with-registry-auth \
-              --image "${{ needs.build-and-push.outputs.backend_image_primary }}" \
-              "$BACKEND_SERVICE"
+      - name: Ensure namespace and registry secret
+        run: |
+          kubectl create namespace watink-homolog --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n watink-homolog create secret docker-registry ghcr-auth \
+            --docker-server=ghcr.io \
+            --docker-username="${{ secrets.GHCR_USER }}" \
+            --docker-password="${{ secrets.GHCR_TOKEN }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-            echo "Updating frontend image..."
-            docker service update --with-registry-auth \
-              --image "${{ needs.build-and-push.outputs.frontend_image_primary }}" \
-              "$FRONTEND_SERVICE"
+      - name: Apply homolog manifests
+        run: kubectl apply -f k8s/homolog/stack.yaml
 
-            echo "Services updated in stack: $STACK_NAME"
+      - name: Update images (sha pinned)
+        run: |
+          kubectl -n watink-homolog set image deployment/watink-backend-homolog backend=${{ needs.build-and-push.outputs.backend_image_primary }}
+          kubectl -n watink-homolog set image deployment/watink-frontend-homolog frontend=${{ needs.build-and-push.outputs.frontend_image_primary }}
+
+      - name: Wait rollout
+        run: |
+          kubectl -n watink-homolog rollout status deployment/watink-backend-homolog --timeout=300s
+          kubectl -n watink-homolog rollout status deployment/watink-frontend-homolog --timeout=300s
 
   smoke-tests:
     needs: deploy-homolog
