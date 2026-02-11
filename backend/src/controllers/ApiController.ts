@@ -3,7 +3,6 @@ import * as Yup from "yup";
 import { v4 as uuidv4 } from "uuid";
 import { readFile } from "fs/promises";
 import AppError from "../errors/AppError";
-import GetDefaultWhatsApp from "../helpers/GetDefaultWhatsApp";
 import SetTicketMessagesAsRead from "../helpers/SetTicketMessagesAsRead";
 import Message from "../models/Message";
 import Whatsapp from "../models/Whatsapp";
@@ -29,7 +28,8 @@ interface ContactData {
 
 const createContact = async (
   whatsappId: number | undefined,
-  newContact: string
+  newContact: string,
+  tenantId: string | number
 ) => {
   // Basic cleaning only - validation happens in Engine
   const number = newContact.replace(/\D/g, "");
@@ -37,12 +37,15 @@ const createContact = async (
   let whatsapp: Whatsapp | null;
 
   if (whatsappId === undefined) {
-    whatsapp = await GetDefaultWhatsApp();
+    whatsapp = await Whatsapp.findOne({ where: { tenantId }, order: [["id", "ASC"]] });
+    if (!whatsapp) {
+      throw new AppError("ERR_NO_DEFAULT_WHATSAPP", 404);
+    }
   } else {
-    whatsapp = await Whatsapp.findByPk(whatsappId);
+    whatsapp = await Whatsapp.findOne({ where: { id: whatsappId, tenantId } });
 
     if (whatsapp === null) {
-      throw new AppError(`whatsapp #${whatsappId} not found`);
+      throw new AppError(`whatsapp #${whatsappId} not found for tenant`, 404);
     }
   }
 
@@ -90,7 +93,8 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     throw new AppError(err.message);
   }
 
-  const contactAndTicket = await createContact(whatsappId, newContact.number);
+  const { tenantId } = req.user;
+  const contactAndTicket = await createContact(whatsappId, newContact.number, tenantId);
 
   if (medias?.length) {
     await Promise.all(

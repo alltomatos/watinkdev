@@ -7,7 +7,7 @@ import ShowTicketService from "../services/TicketServices/ShowTicketService";
 export const sendButtons = async (req: Request, res: Response): Promise<Response> => {
     const { tenantId } = req.user;
     const { ticketId, text, footer, buttons, imageUrl } = req.body;
-    const ticket = await ShowTicketService(ticketId);
+    const ticket = await ShowTicketService(ticketId, tenantId);
     const contactNumber = ticket.contact.number.replace(/\D/g, "");
 
     const command: Envelope = {
@@ -32,7 +32,7 @@ export const sendButtons = async (req: Request, res: Response): Promise<Response
 export const sendList = async (req: Request, res: Response): Promise<Response> => {
     const { tenantId } = req.user;
     const { ticketId, text, footer, buttonText, sections } = req.body;
-    const ticket = await ShowTicketService(ticketId);
+    const ticket = await ShowTicketService(ticketId, tenantId);
     const contactNumber = ticket.contact.number.replace(/\D/g, "");
 
     const command: Envelope = {
@@ -57,7 +57,7 @@ export const sendList = async (req: Request, res: Response): Promise<Response> =
 export const sendPoll = async (req: Request, res: Response): Promise<Response> => {
     const { tenantId } = req.user;
     const { ticketId, name, options, selectableCount } = req.body;
-    const ticket = await ShowTicketService(ticketId);
+    const ticket = await ShowTicketService(ticketId, tenantId);
     const contactNumber = ticket.contact.number.replace(/\D/g, "");
 
     const command: Envelope = {
@@ -81,7 +81,7 @@ export const sendPoll = async (req: Request, res: Response): Promise<Response> =
 export const sendCarousel = async (req: Request, res: Response): Promise<Response> => {
     const { tenantId } = req.user;
     const { ticketId, text, footer, cards } = req.body;
-    const ticket = await ShowTicketService(ticketId);
+    const ticket = await ShowTicketService(ticketId, tenantId);
     const contactNumber = ticket.contact.number.replace(/\D/g, "");
 
     const command: Envelope = {
