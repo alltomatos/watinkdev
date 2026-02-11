@@ -32,6 +32,47 @@ interface WhaileysSession {
 }
 
 class SessionManager {
+  private isValidEnvelope(envelope: any): envelope is Envelope {
+    return !!envelope
+      && typeof envelope === "object"
+      && typeof envelope.type === "string"
+      && typeof envelope.timestamp === "number"
+      && (typeof envelope.tenantId === "string" || typeof envelope.tenantId === "number")
+      && Object.prototype.hasOwnProperty.call(envelope, "payload");
+  }
+
+  private validateCommandPayload(type: string, payload: any): boolean {
+    if (!payload || typeof payload !== "object") return false;
+
+    switch (type) {
+      case "message.send.text":
+        return typeof payload.sessionId === "number"
+          && typeof payload.to === "string"
+          && typeof payload.body === "string";
+      case "message.send.media":
+        return typeof payload.sessionId === "number"
+          && typeof payload.to === "string"
+          && !!payload.media
+          && typeof payload.media.mimetype === "string"
+          && typeof payload.media.filename === "string"
+          && typeof payload.media.data === "string";
+      case "session.start":
+      case "session.stop":
+      case "message.send.buttons":
+      case "message.send.list":
+      case "message.send.poll":
+      case "message.send.template":
+      case "message.send.interactive":
+      case "message.send.carousel":
+      case "contact.sync":
+      case "message.markAsRead":
+      case "contact.import":
+      case "history.sync":
+        return true;
+      default:
+        return false;
+    }
+  }
   private sessions: Map<number, WhaileysSession> = new Map();
   private retries: Map<number, number> = new Map();
   private manuallyDisconnected: Set<number> = new Set();
@@ -54,6 +95,16 @@ class SessionManager {
   }
 
   async handleCommand(envelope: Envelope) {
+    if (!this.isValidEnvelope(envelope)) {
+      logger.error(`[ContractValidation] Invalid command envelope received: ${JSON.stringify(envelope)}`);
+      return;
+    }
+
+    if (!this.validateCommandPayload(envelope.type, envelope.payload)) {
+      logger.error(`[ContractValidation] Invalid payload for command type=${envelope.type}`);
+      return;
+    }
+
     logger.info(`Received command: ${envelope.type}`);
 
     switch (envelope.type as CommandType) {
