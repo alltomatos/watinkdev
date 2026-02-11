@@ -50,14 +50,14 @@ class RabbitMQService {
     await this.channel.bindQueue(goQueue.queue, "wbot.commands", "wbot.*.*.whatsmeow.#");
   }
 
-  async publishCommand(routingKey: string, message: Envelope, exchange: string = "wbot.commands"): Promise<void> {
+  async publishCommand(routingKey: string, message: Envelope, exchange: string = "wbot.commands"): Promise<boolean> {
     if (!this.channel) {
       logger.warn("Cannot publish command, channel is closed");
-      return;
+      return false;
     }
 
     logger.info(`[RabbitMQ] Publishing command to ${routingKey} on exchange ${exchange}`);
-    this.channel.publish(
+    return this.channel.publish(
       exchange,
       routingKey,
       Buffer.from(JSON.stringify(message))
