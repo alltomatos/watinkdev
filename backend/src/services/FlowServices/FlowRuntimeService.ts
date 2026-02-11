@@ -21,19 +21,25 @@ class FlowRuntimeService {
   public async processWhatsAppMessage(data: WhatsAppFlowEvent, tenantId: number | string): Promise<void> {
     const { ticketId, contactId, messageBody, fromMe } = data;
 
+    if (!tenantId) {
+      logger.error("[FlowRuntime] Missing tenantId in processWhatsAppMessage. Failing closed.");
+      return;
+    }
+
     if (fromMe || !ticketId) return;
 
     const activeSession = await FlowSession.findOne({
       where: {
         entityId: ticketId,
         entityType: "ticket",
-        status: "active"
+        status: "active",
+        tenantId
       }
     });
 
     if (activeSession) {
       logger.info(`[FlowRuntime] Found active session ${activeSession.id} for ticket ${ticketId}`);
-      await FlowExecutorService.next(activeSession.id, messageBody);
+      await FlowExecutorService.next(activeSession.id, messageBody, tenantId);
       return;
     }
 
@@ -49,12 +55,18 @@ class FlowRuntimeService {
     await FlowExecutorService.start(trigger.flowId, {
       ticketId,
       contactId,
-      messageBody
-    });
+      messageBody,
+      tenantId
+    }, tenantId);
   }
 
   public async processTagAdded(data: TagAddedFlowEvent, tenantId: number | string): Promise<void> {
     const { tagId, entityId, entityType } = data;
+
+    if (!tenantId) {
+      logger.error("[FlowRuntime] Missing tenantId in processTagAdded. Failing closed.");
+      return;
+    }
 
     const trigger = await FlowTriggerService.findTrigger(
       "tagAdded",
@@ -76,7 +88,8 @@ class FlowRuntimeService {
       context.contactId = entityId;
     }
 
-    await FlowExecutorService.start(trigger.flowId, context);
+    context.tenantId = tenantId;
+    await FlowExecutorService.start(trigger.flowId, context, tenantId);
     logger.info(`[FlowRuntime] Flow ${trigger.flowId} started by tagAdded on ${entityType} ${entityId}`);
   }
 }

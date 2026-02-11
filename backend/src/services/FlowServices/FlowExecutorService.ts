@@ -48,9 +48,14 @@ interface FlowEdge {
 }
 
 class FlowExecutorService {
-  public async start(flowId: number, context: FlowContext): Promise<FlowSession> {
+  public async start(flowId: number, context: FlowContext, tenantId?: string | number): Promise<FlowSession> {
     const flow = await Flow.findByPk(flowId);
     if (!flow) throw new AppError("Flow not found", 404);
+
+    const resolvedTenantId = tenantId || (context as any).tenantId || flow.tenantId;
+    if (!resolvedTenantId || String(flow.tenantId) !== String(resolvedTenantId)) {
+      throw new AppError("ERR_FLOW_FORBIDDEN", 403);
+    }
 
     const nodes = flow.nodes as unknown as FlowNode[];
 
@@ -58,9 +63,10 @@ class FlowExecutorService {
     const session = await FlowSession.create({
       flowId,
       status: "active",
-      context,
+      context: { ...context, tenantId: resolvedTenantId },
       entityId: context.ticketId,
-      entityType: "ticket"
+      entityType: "ticket",
+      tenantId: String(resolvedTenantId)
     });
 
     // 2. Find Start Node
@@ -74,14 +80,19 @@ class FlowExecutorService {
     return this.runNode(session, flow, startNode);
   }
 
-  public async next(sessionId: number, input: string): Promise<FlowSession> {
-    const session = await FlowSession.findByPk(sessionId);
+  public async next(sessionId: number, input: string, tenantId?: string | number): Promise<FlowSession> {
+    const session = tenantId
+      ? await FlowSession.findOne({ where: { id: sessionId, tenantId: String(tenantId) } })
+      : await FlowSession.findByPk(sessionId);
     if (!session || session.status !== "active") {
       throw new AppError("Session not active", 400);
     }
 
     const flow = await Flow.findByPk(session.flowId);
     if (!flow) throw new AppError("Flow not found", 404);
+    if (session.tenantId && String(flow.tenantId) !== String(session.tenantId)) {
+      throw new AppError("ERR_FLOW_FORBIDDEN", 403);
+    }
 
     const nodes = flow.nodes as unknown as FlowNode[];
     const edges = flow.edges as unknown as FlowEdge[];

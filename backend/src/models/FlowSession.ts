@@ -11,6 +11,7 @@ import {
   BelongsTo
 } from "sequelize-typescript";
 import Flow from "./Flow";
+import Tenant from "./Tenant";
 
 @Table
 class FlowSession extends Model<FlowSession> {
@@ -43,6 +44,13 @@ class FlowSession extends Model<FlowSession> {
 
   @Column
   entityType: string;
+
+  @ForeignKey(() => Tenant)
+  @Column
+  tenantId: string;
+
+  @BelongsTo(() => Tenant)
+  tenant: Tenant;
 
   @CreatedAt
   createdAt: Date;
