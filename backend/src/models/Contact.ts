@@ -13,7 +13,10 @@ import {
   ForeignKey,
   BelongsTo,
   DataType,
-  BelongsToMany
+  BelongsToMany,
+  AfterCreate,
+  AfterUpdate,
+  AfterDestroy
 } from "sequelize-typescript";
 import ContactCustomField from "./ContactCustomField";
 import Ticket from "./Ticket";
@@ -23,6 +26,8 @@ import ClientContact from "./ClientContact";
 import User from "./User";
 import Tag from "./Tag";
 import EntityTag from "./EntityTag";
+import ContactAudit from "./ContactAudit";
+import context from "../libs/context";
 
 @Table
 class Contact extends Model<Contact> {
@@ -99,6 +104,59 @@ class Contact extends Model<Contact> {
     constraints: false
   })
   tags: Tag[];
+
+  @AfterCreate
+  static async logCreate(instance: Contact, options: any) {
+    const ctx = context.getStore();
+    await ContactAudit.create(
+      {
+        tenantId: instance.tenantId,
+        contactId: instance.id,
+        userId: ctx?.userId as any,
+        action: "create",
+        nextData: instance.toJSON()
+      },
+      { transaction: options.transaction }
+    );
+  }
+
+  @AfterUpdate
+  static async logUpdate(instance: Contact, options: any) {
+    const ctx = context.getStore();
+    const changed = instance.changed();
+    const previousData = {};
+    if (changed) {
+      (changed as string[]).forEach((field) => {
+        previousData[field] = (instance as any).previous(field);
+      });
+    }
+    await ContactAudit.create(
+      {
+        tenantId: instance.tenantId,
+        contactId: instance.id,
+        userId: ctx?.userId as any,
+        action: "update",
+        previousData,
+        nextData: instance.toJSON()
+      },
+      { transaction: options.transaction }
+    );
+  }
+
+  @AfterDestroy
+  static async logDestroy(instance: Contact, options: any) {
+    const ctx = context.getStore();
+    await ContactAudit.create(
+      {
+        tenantId: instance.tenantId,
+        contactId: instance.id,
+        userId: ctx?.userId as any,
+        action: "delete",
+        previousData: instance.toJSON()
+      },
+      { transaction: options.transaction }
+    );
+  }
 }
 
 export default Contact;

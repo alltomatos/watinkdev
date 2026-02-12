@@ -21,7 +21,47 @@ const ClientContact_1 = __importDefault(require("./ClientContact"));
 const User_1 = __importDefault(require("./User"));
 const Tag_1 = __importDefault(require("./Tag"));
 const EntityTag_1 = __importDefault(require("./EntityTag"));
+const ContactAudit_1 = __importDefault(require("./ContactAudit"));
+const context_1 = __importDefault(require("../libs/context"));
 let Contact = class Contact extends sequelize_typescript_1.Model {
+    static async logCreate(instance, options) {
+        const ctx = context_1.default.getStore();
+        await ContactAudit_1.default.create({
+            tenantId: instance.tenantId,
+            contactId: instance.id,
+            userId: ctx === null || ctx === void 0 ? void 0 : ctx.userId,
+            action: "create",
+            nextData: instance.toJSON()
+        }, { transaction: options.transaction });
+    }
+    static async logUpdate(instance, options) {
+        const ctx = context_1.default.getStore();
+        const changed = instance.changed();
+        const previousData = {};
+        if (changed) {
+            changed.forEach((field) => {
+                previousData[field] = instance.previous(field);
+            });
+        }
+        await ContactAudit_1.default.create({
+            tenantId: instance.tenantId,
+            contactId: instance.id,
+            userId: ctx === null || ctx === void 0 ? void 0 : ctx.userId,
+            action: "update",
+            previousData,
+            nextData: instance.toJSON()
+        }, { transaction: options.transaction });
+    }
+    static async logDestroy(instance, options) {
+        const ctx = context_1.default.getStore();
+        await ContactAudit_1.default.create({
+            tenantId: instance.tenantId,
+            contactId: instance.id,
+            userId: ctx === null || ctx === void 0 ? void 0 : ctx.userId,
+            action: "delete",
+            previousData: instance.toJSON()
+        }, { transaction: options.transaction });
+    }
 };
 __decorate([
     sequelize_typescript_1.PrimaryKey,
@@ -114,6 +154,24 @@ __decorate([
     }),
     __metadata("design:type", Array)
 ], Contact.prototype, "tags", void 0);
+__decorate([
+    sequelize_typescript_1.AfterCreate,
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Contact, Object]),
+    __metadata("design:returntype", Promise)
+], Contact, "logCreate", null);
+__decorate([
+    sequelize_typescript_1.AfterUpdate,
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Contact, Object]),
+    __metadata("design:returntype", Promise)
+], Contact, "logUpdate", null);
+__decorate([
+    sequelize_typescript_1.AfterDestroy,
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Contact, Object]),
+    __metadata("design:returntype", Promise)
+], Contact, "logDestroy", null);
 Contact = __decorate([
     sequelize_typescript_1.Table
 ], Contact);

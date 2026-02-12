@@ -40,6 +40,7 @@ import GroupRole from "../models/GroupRole";
 import GroupPermission from "../models/GroupPermission";
 import Step from "../models/Step";
 import EmailTemplate from "../models/EmailTemplate";
+import ContactAudit from "../models/ContactAudit";
 
 
 // eslint-disable-next-line
@@ -89,41 +90,55 @@ const models = [
   GroupPermission,
   Step,
   EmailTemplate,
-
+  ContactAudit,
 ];
 
 sequelize.addModels(models);
 
-sequelize.addHook("beforeFind", async (options: any) => {
-  if (options.tenantId && options.transaction) {
-    await sequelize.query(`SET app.current_tenant = '${options.tenantId}'`, {
+import context from "../libs/context";
+
+const setTenant = async (options: any, tenantId: any) => {
+  if (!tenantId) return;
+  
+  // Optimization: Check if already set to avoid overhead
+  const [res] = await sequelize.query("SELECT current_setting('app.current_tenant', true) as current", { 
+    transaction: options.transaction,
+    type: "SELECT" as any // Type assertion to avoid enum import issues
+  }) as any;
+  
+  const currentTenant = res && res[0] ? res[0].current : null;
+
+  if (currentTenant !== String(tenantId)) {
+    // Fix SQL Injection: Use replacements
+    await sequelize.query("SET app.current_tenant = :tenantId", {
+      replacements: { tenantId },
       transaction: options.transaction
     });
   }
+};
+
+sequelize.addHook("beforeFind", async (options: any) => {
+  const ctx = context.getStore();
+  const tenantId = options.tenantId || ctx?.tenantId;
+  await setTenant(options, tenantId);
 });
 
 sequelize.addHook("beforeCreate", async (instance: any, options: any) => {
-  if (instance.tenantId && options.transaction) {
-    await sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
-      transaction: options.transaction
-    });
-  }
+  const ctx = context.getStore();
+  const tenantId = instance.tenantId || ctx?.tenantId;
+  await setTenant(options, tenantId);
 });
 
 sequelize.addHook("beforeUpdate", async (instance: any, options: any) => {
-  if (instance.tenantId && options.transaction) {
-    await sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
-      transaction: options.transaction
-    });
-  }
+  const ctx = context.getStore();
+  const tenantId = instance.tenantId || ctx?.tenantId;
+  await setTenant(options, tenantId);
 });
 
 sequelize.addHook("beforeDestroy", async (instance: any, options: any) => {
-  if (instance.tenantId && options.transaction) {
-    await sequelize.query(`SET app.current_tenant = '${instance.tenantId}'`, {
-      transaction: options.transaction
-    });
-  }
+  const ctx = context.getStore();
+  const tenantId = instance.tenantId || ctx?.tenantId;
+  await setTenant(options, tenantId);
 });
 
 export default sequelize;

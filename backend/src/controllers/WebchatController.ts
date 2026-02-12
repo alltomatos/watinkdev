@@ -9,6 +9,7 @@ import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import CreateMessageService from "../services/MessageServices/CreateMessageService";
 import RabbitMQService from "../services/RabbitMQService";
 import { Envelope, MessageReceivedPayload } from "../microservice/contracts";
+import context from "../libs/context";
 
 const verifyAuthorizedDomain = (req: Request, chatConfig: any): boolean => {
     if (!chatConfig || !chatConfig.authorizedDomains) return true;
@@ -41,11 +42,13 @@ export const getConfig = async (req: Request, res: Response): Promise<Response> 
         return res.status(403).json({ error: "Forbidden: Unauthorized Origin" });
     }
 
-    return res.json({
-        name: whatsapp.name,
-        greetingMessage: whatsapp.greetingMessage,
-        farewellMessage: whatsapp.farewellMessage,
-        chatConfig: whatsapp.chatConfig
+    return context.run({ tenantId: whatsapp.tenantId.toString(), userId: "WEBCHAT" }, () => {
+        return res.json({
+            name: whatsapp.name,
+            greetingMessage: whatsapp.greetingMessage,
+            farewellMessage: whatsapp.farewellMessage,
+            chatConfig: whatsapp.chatConfig
+        });
     });
 };
 
@@ -63,8 +66,10 @@ export const createTicket = async (req: Request, res: Response): Promise<Respons
         return res.status(403).json({ error: "Forbidden: Unauthorized Origin" });
     }
 
-    // Find or Create Contact
-    let contact: Contact | null = null;
+    return context.run({ tenantId: whatsapp.tenantId.toString(), userId: "WEBCHAT" }, async () => {
+        // Find or Create Contact
+        let contact: Contact | null = null;
+        // ... (rest of logic)
 
     if (email || phone) {
         const orConditions: any[] = [];
@@ -149,6 +154,7 @@ export const createTicket = async (req: Request, res: Response): Promise<Respons
     }
 
     return res.json({ ticketId: ticket.id, contactId: contact.id, messageId });
+    });
 };
 
 import ListMessagesService from "../services/MessageServices/ListMessagesService";
@@ -168,12 +174,14 @@ export const listMessages = async (req: Request, res: Response): Promise<Respons
         return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const { count, messages, hasMore } = await ListMessagesService({
-        pageNumber,
-        ticketId
-    });
+    return context.run({ tenantId: ticket.tenantId.toString(), userId: "WEBCHAT" }, async () => {
+        const { count, messages, hasMore } = await ListMessagesService({
+            pageNumber,
+            ticketId
+        });
 
-    return res.json({ count, messages, hasMore });
+        return res.json({ count, messages, hasMore });
+    });
 };
 
 export const saveMessage = async (req: Request, res: Response): Promise<Response> => {
@@ -191,6 +199,7 @@ export const saveMessage = async (req: Request, res: Response): Promise<Response
         return res.status(404).json({ error: "Whatsapp not found" });
     }
 
+    return context.run({ tenantId: ticket.tenantId.toString(), userId: "WEBCHAT" }, async () => {
     // ShowTicketService returns ticket with contact included
     const contact = ticket.contact;
 
@@ -227,4 +236,5 @@ export const saveMessage = async (req: Request, res: Response): Promise<Response
     );
 
     return res.json({ messageId });
+    });
 };

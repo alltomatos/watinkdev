@@ -181,7 +181,7 @@ const publishEvent = async (tenantId: string | number, sessionId: number, type: 
     type,
     payload
   };
-  await rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId}.event`, envelope);
+  await rabbitmq.publishEvent(rabbitmq.generateRoutingKey(tenantId, "papi", sessionId, type), envelope);
 };
 
 const start = async () => {

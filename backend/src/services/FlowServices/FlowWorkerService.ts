@@ -7,13 +7,13 @@ class FlowWorkerService {
   public async start() {
     logger.info("Starting FlowWorkerService...");
 
-    const routingKeys = ["flow.execution.*"];
+    const routingKeys = ["flow.tenant.*.execution.*"];
 
     await RabbitMQService.consumeCommands("flow.worker.queue", routingKeys, async (msg: Envelope) => {
       await this.processMessage(msg);
     });
 
-    logger.info("FlowWorkerService started and listening on flow.execution.*");
+    logger.info("FlowWorkerService started and listening on flow.tenant.*.execution.*");
   }
 
   private async processMessage(msg: Envelope) {

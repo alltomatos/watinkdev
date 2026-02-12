@@ -86,7 +86,7 @@ const SendWhatsAppInteractive = async ({
                 payload
             };
 
-            routingKey = `wbot.${ticket.tenantId}.${sessionId}.${engineType}.message.send.buttons`;
+            routingKey = RabbitMQService.generateRoutingKey(ticket.tenantId, engineType, sessionId, "message.send.buttons");
         } else if (list) {
             const payload: SendListPayload = {
                 sessionId,
@@ -112,7 +112,7 @@ const SendWhatsAppInteractive = async ({
                 payload
             };
 
-            routingKey = `wbot.${ticket.tenantId}.${sessionId}.${engineType}.message.send.list`;
+            routingKey = RabbitMQService.generateRoutingKey(ticket.tenantId, engineType, sessionId, "message.send.list");
         } else {
             throw new Error("Invalid interactive message: must have buttons or list");
         }

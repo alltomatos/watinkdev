@@ -12,12 +12,15 @@ const UpdateSettingService = async ({
   value,
   tenantId
 }: Request): Promise<Setting | undefined> => {
+  const ctx = require("../../libs/context").default.getStore();
+  const effectiveTenantId = tenantId || ctx?.tenantId;
+
   let setting = await Setting.findOne({
-    where: { key, tenantId }
+    where: { key, tenantId: effectiveTenantId }
   });
 
   if (!setting) {
-    setting = await Setting.create({ key, value, tenantId });
+    setting = await Setting.create({ key, value, tenantId: effectiveTenantId });
   } else {
     await setting.update({ value });
   }

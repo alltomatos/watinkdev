@@ -5,7 +5,10 @@ interface Request {
 }
 
 const ListSettingsService = async (params?: Request): Promise<Setting[] | undefined> => {
-  const whereCondition: any = params?.tenantId ? { tenantId: params.tenantId } : {};
+  const ctx = require("../../libs/context").default.getStore();
+  const effectiveTenantId = params?.tenantId || ctx?.tenantId;
+
+  const whereCondition: any = effectiveTenantId ? { tenantId: effectiveTenantId } : {};
 
   const settings = await Setting.findAll({
     where: whereCondition

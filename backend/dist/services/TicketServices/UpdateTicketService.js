@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -22,19 +13,19 @@ const ShowTicketService_1 = __importDefault(require("./ShowTicketService"));
 const EmbeddingService_1 = __importDefault(require("../AIServices/EmbeddingService"));
 const EntityTagService_1 = __importDefault(require("../TagServices/EntityTagService"));
 const logger_1 = require("../../utils/logger");
-const UpdateTicketService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ ticketData, ticketId }) {
-    var _b, _c;
+const UpdateTicketService = async ({ ticketData, ticketId }) => {
+    var _a, _b;
     const { status, userId, queueId, whatsappId, stepId } = ticketData;
-    const ticket = yield (0, ShowTicketService_1.default)(ticketId);
-    yield (0, SetTicketMessagesAsRead_1.default)(ticket);
+    const ticket = await (0, ShowTicketService_1.default)(ticketId);
+    await (0, SetTicketMessagesAsRead_1.default)(ticket);
     if (whatsappId && ticket.whatsappId !== whatsappId) {
-        yield (0, CheckContactOpenTickets_1.default)(ticket.contactId, whatsappId);
+        await (0, CheckContactOpenTickets_1.default)(ticket.contactId, whatsappId);
     }
     const oldStatus = ticket.status;
-    const oldUserId = (_b = ticket.user) === null || _b === void 0 ? void 0 : _b.id;
+    const oldUserId = (_a = ticket.user) === null || _a === void 0 ? void 0 : _a.id;
     const oldStepId = ticket.stepId;
     if (oldStatus === "closed") {
-        yield (0, CheckContactOpenTickets_1.default)(ticket.contact.id, ticket.whatsappId);
+        await (0, CheckContactOpenTickets_1.default)(ticket.contact.id, ticket.whatsappId);
     }
     // Build update object
     const updateData = {};
@@ -46,9 +37,9 @@ const UpdateTicketService = (_a) => __awaiter(void 0, [_a], void 0, function* ({
         updateData.userId = userId;
     if (stepId !== undefined)
         updateData.stepId = stepId;
-    yield ticket.update(updateData);
+    await ticket.update(updateData);
     if (ticketData.tags) {
-        yield EntityTagService_1.default.SyncEntityTags({
+        await EntityTagService_1.default.SyncEntityTags({
             tagIds: ticketData.tags,
             entityType: "ticket",
             entityId: ticket.id,
@@ -56,13 +47,13 @@ const UpdateTicketService = (_a) => __awaiter(void 0, [_a], void 0, function* ({
         });
     }
     if (whatsappId) {
-        yield ticket.update({
+        await ticket.update({
             whatsappId
         });
     }
-    const ticketUpdated = yield (0, ShowTicketService_1.default)(ticket.id);
+    const ticketUpdated = await (0, ShowTicketService_1.default)(ticket.id);
     const io = (0, socket_1.getIO)();
-    if (ticket.status !== oldStatus || ((_c = ticket.user) === null || _c === void 0 ? void 0 : _c.id) !== oldUserId) {
+    if (ticket.status !== oldStatus || ((_b = ticket.user) === null || _b === void 0 ? void 0 : _b.id) !== oldUserId) {
         io.to(oldStatus).emit("ticket", {
             action: "delete",
             ticketId: ticket.id
@@ -77,15 +68,15 @@ const UpdateTicketService = (_a) => __awaiter(void 0, [_a], void 0, function* ({
     });
     // TRIGGER: Wallet binding when moving to a binding step
     if (stepId !== undefined && stepId !== oldStepId && userId) {
-        (() => __awaiter(void 0, void 0, void 0, function* () {
+        (async () => {
             try {
-                const newStep = yield Step_1.default.findByPk(stepId);
+                const newStep = await Step_1.default.findByPk(stepId);
                 if (newStep === null || newStep === void 0 ? void 0 : newStep.isBindingStep) {
                     // Check if contact already has a wallet owner
-                    const contact = yield Contact_1.default.findByPk(ticket.contactId);
+                    const contact = await Contact_1.default.findByPk(ticket.contactId);
                     if (contact && !contact.walletUserId) {
                         // Bind contact to the user who moved the ticket
-                        yield contact.update({ walletUserId: userId });
+                        await contact.update({ walletUserId: userId });
                         logger_1.logger.info(`[WalletBinding] Contact ${contact.id} bound to user ${userId} via step "${newStep.name}"`);
                     }
                 }
@@ -93,29 +84,29 @@ const UpdateTicketService = (_a) => __awaiter(void 0, [_a], void 0, function* ({
             catch (error) {
                 logger_1.logger.error(`Error in wallet binding trigger for ticket #${ticket.id}:`, error);
             }
-        }))();
+        })();
     }
     // TRIGGER: Process embeddings when ticket is closed (async, non-blocking)
     if (status === "closed" && oldStatus !== "closed" && !ticket.isGroup) {
         // Run async to not block the response
-        (() => __awaiter(void 0, void 0, void 0, function* () {
+        (async () => {
             try {
                 // Check if AI is enabled for this tenant
-                const [aiEnabled, aiAssistantEnabled] = yield Promise.all([
+                const [aiEnabled, aiAssistantEnabled] = await Promise.all([
                     Setting_1.default.findOne({ where: { key: "aiEnabled", tenantId: ticket.tenantId } }),
                     Setting_1.default.findOne({ where: { key: "aiAssistantEnabled", tenantId: ticket.tenantId } })
                 ]);
                 if ((aiEnabled === null || aiEnabled === void 0 ? void 0 : aiEnabled.value) === "true" && (aiAssistantEnabled === null || aiAssistantEnabled === void 0 ? void 0 : aiAssistantEnabled.value) === "true") {
                     logger_1.logger.info(`Processing embeddings for closed ticket #${ticket.id}`);
-                    yield EmbeddingService_1.default.processTicket(ticket.id, ticket.tenantId);
+                    await EmbeddingService_1.default.processTicket(ticket.id, ticket.tenantId);
                     logger_1.logger.info(`Embeddings processed successfully for ticket #${ticket.id}`);
                 }
             }
             catch (error) {
                 logger_1.logger.error(`Error processing embeddings for ticket #${ticket.id}:`, error);
             }
-        }))();
+        })();
     }
     return { ticket, oldStatus, oldUserId };
-});
+};
 exports.default = UpdateTicketService;

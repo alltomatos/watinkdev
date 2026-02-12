@@ -4,6 +4,7 @@ import { Request, Response, NextFunction } from "express";
 import AppError from "../errors/AppError";
 import authConfig from "../config/auth";
 import User from "../models/User";
+import context from "../libs/context";
 
 interface TokenPayload {
   id: string;
@@ -37,6 +38,10 @@ const isAuth = async (req: Request, res: Response, next: NextFunction): Promise<
       tenantId: user.tenantId.toString(),
       profile
     };
+
+    return context.run({ tenantId: user.tenantId.toString(), userId: id }, () => {
+      return next();
+    });
   } catch (err) {
     console.log("DEBUG: isAuth failed. Header:", authHeader ? "YES" : "NO", "Token:", token ? token.slice(-6) : "NONE", "Error:", err.message);
     throw new AppError(
@@ -44,8 +49,6 @@ const isAuth = async (req: Request, res: Response, next: NextFunction): Promise<
       401
     );
   }
-
-  return next();
 };
 
 export default isAuth;

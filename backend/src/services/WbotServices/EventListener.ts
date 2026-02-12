@@ -20,26 +20,24 @@ const getSessionId = (sessionId: string | number): number => {
 
 export const EventListener = async () => {
   const routingKeys = [
+    "wbot.tenant.*.*.*.session.qrcode",
+    "wbot.tenant.*.*.*.session.pairingcode",
+    "wbot.tenant.*.*.*.session.status",
+    "wbot.tenant.*.*.*.message.received",
+    "wbot.tenant.*.*.*.message.reaction",
+    "wbot.tenant.*.*.*.contact.update",
+    "wbot.tenant.*.*.*.message.ack",
+    "wbot.tenant.*.*.*.message.revoke",
+    "wbot.tenant.#",
+    // Legacy support (temporary)
     "wbot.*.*.session.qrcode",
     "wbot.*.*.session.pairingcode",
     "wbot.*.*.session.status",
     "wbot.*.*.message.received",
     "wbot.*.*.message.reaction",
-    "wbot.*.*.message.reaction",
     "wbot.*.*.contact.update",
     "wbot.*.*.message.ack",
     "wbot.*.*.message.revoke",
-    "wbot.*.*.*.session.qrcode",
-    "wbot.*.*.*.session.pairingcode",
-    "wbot.*.*.*.session.status",
-    "wbot.*.*.*.message.received",
-    "wbot.*.*.*.message.reaction",
-    "wbot.*.*.*.contact.update",
-    "wbot.*.*.*.message.ack",
-    "wbot.*.*.*.message.revoke",
-    // Wildcard fallback for engines that append extra segments or use different naming
-    "wbot.*.*.*.event",
-    "wbot.*.*.event",
     "wbot.#"
   ];
 

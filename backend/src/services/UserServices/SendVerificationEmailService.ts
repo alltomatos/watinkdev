@@ -116,7 +116,7 @@ const SendVerificationEmailService = async (email: string, appUrl: string): Prom
         payload
     };
 
-    await RabbitMQService.publishCommand("smtp.send", envelope);
+    await RabbitMQService.publishCommand(`smtp.tenant.${envelope.tenantId}.send`, envelope);
 };
 
 export default SendVerificationEmailService;

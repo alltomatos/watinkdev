@@ -10,6 +10,7 @@ import {
   createRefreshToken
 } from "../../helpers/CreateTokens";
 import { SerializeUser } from "../../helpers/SerializeUser";
+import context from "../../libs/context";
 
 interface RefreshTokenPayload {
   id: string;
@@ -40,7 +41,9 @@ export const RefreshTokenService = async (
     const newToken = createAccessToken(user);
     const refreshToken = createRefreshToken(user);
 
-    return { user: SerializeUser(user), newToken, refreshToken };
+    return context.run({ tenantId: user.tenantId.toString(), userId: user.id.toString() }, () => {
+      return { user: SerializeUser(user), newToken, refreshToken };
+    });
   } catch (err) {
     res.clearCookie("jrt");
     throw new AppError("ERR_SESSION_EXPIRED", 401);

@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -18,8 +9,8 @@ const Queue_1 = __importDefault(require("../../models/Queue"));
 const Tag_1 = __importDefault(require("../../models/Tag"));
 const Message_1 = __importDefault(require("../../models/Message"));
 const Ticket_1 = __importDefault(require("../../models/Ticket"));
-const ShowWhatsAppService = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    const whatsapp = yield Whatsapp_1.default.findByPk(id, {
+const ShowWhatsAppService = async (id) => {
+    const whatsapp = await Whatsapp_1.default.findByPk(id, {
         include: [
             {
                 model: Queue_1.default,
@@ -39,7 +30,7 @@ const ShowWhatsAppService = (id) => __awaiter(void 0, void 0, void 0, function* 
     }
     // Calculate message counts
     // We need to join with Tickets to filter by whatsappId
-    const sentCount = yield Message_1.default.count({
+    const sentCount = await Message_1.default.count({
         include: [{
                 model: Ticket_1.default,
                 where: { whatsappId: id },
@@ -47,7 +38,7 @@ const ShowWhatsAppService = (id) => __awaiter(void 0, void 0, void 0, function* 
             }],
         where: { fromMe: true }
     });
-    const receivedCount = yield Message_1.default.count({
+    const receivedCount = await Message_1.default.count({
         include: [{
                 model: Ticket_1.default,
                 where: { whatsappId: id },
@@ -60,5 +51,5 @@ const ShowWhatsAppService = (id) => __awaiter(void 0, void 0, void 0, function* 
     whatsappData.messagesSent = sentCount;
     whatsappData.messagesReceived = receivedCount;
     return whatsappData;
-});
+};
 exports.default = ShowWhatsAppService;

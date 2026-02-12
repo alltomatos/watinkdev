@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const sequelize_typescript_1 = require("sequelize-typescript");
 const Flow_1 = __importDefault(require("./Flow"));
+const Tenant_1 = __importDefault(require("./Tenant"));
 let FlowSession = class FlowSession extends sequelize_typescript_1.Model {
 };
 __decorate([
@@ -54,6 +55,15 @@ __decorate([
     sequelize_typescript_1.Column,
     __metadata("design:type", String)
 ], FlowSession.prototype, "entityType", void 0);
+__decorate([
+    (0, sequelize_typescript_1.ForeignKey)(() => Tenant_1.default),
+    sequelize_typescript_1.Column,
+    __metadata("design:type", String)
+], FlowSession.prototype, "tenantId", void 0);
+__decorate([
+    (0, sequelize_typescript_1.BelongsTo)(() => Tenant_1.default),
+    __metadata("design:type", Tenant_1.default)
+], FlowSession.prototype, "tenant", void 0);
 __decorate([
     sequelize_typescript_1.CreatedAt,
     __metadata("design:type", Date)

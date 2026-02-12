@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -19,8 +10,8 @@ const Mustache_1 = __importDefault(require("../../helpers/Mustache"));
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const Message_1 = __importDefault(require("../../models/Message"));
 const GenerateWAMessageId_1 = __importDefault(require("../../helpers/GenerateWAMessageId"));
-const SendWhatsAppInteractive = (_a) => __awaiter(void 0, [_a], void 0, function* ({ body, ticket, buttons, list }) {
-    var _b;
+const SendWhatsAppInteractive = async ({ body, ticket, buttons, list }) => {
+    var _a;
     try {
         const formattedBody = (0, Mustache_1.default)(body, ticket.contact);
         const id = (0, uuid_1.v4)();
@@ -39,11 +30,11 @@ const SendWhatsAppInteractive = (_a) => __awaiter(void 0, [_a], void 0, function
             ack: 0,
             timestamp: new Date().getTime()
         };
-        const message = yield Message_1.default.create(messageData);
+        const message = await Message_1.default.create(messageData);
         // Determine Engine Type
-        let engineType = (_b = ticket.whatsapp) === null || _b === void 0 ? void 0 : _b.engineType;
+        let engineType = (_a = ticket.whatsapp) === null || _a === void 0 ? void 0 : _a.engineType;
         if (!engineType) {
-            const whatsapp = yield Whatsapp_1.default.findByPk(ticket.whatsappId);
+            const whatsapp = await Whatsapp_1.default.findByPk(ticket.whatsappId);
             engineType = whatsapp === null || whatsapp === void 0 ? void 0 : whatsapp.engineType;
         }
         if (!engineType)
@@ -68,7 +59,7 @@ const SendWhatsAppInteractive = (_a) => __awaiter(void 0, [_a], void 0, function
                 type: "message.send.buttons",
                 payload
             };
-            routingKey = `wbot.${ticket.tenantId}.${sessionId}.${engineType}.message.send.buttons`;
+            routingKey = RabbitMQService_1.default.generateRoutingKey(ticket.tenantId, engineType, sessionId, "message.send.buttons");
         }
         else if (list) {
             const payload = {
@@ -93,17 +84,17 @@ const SendWhatsAppInteractive = (_a) => __awaiter(void 0, [_a], void 0, function
                 type: "message.send.list",
                 payload
             };
-            routingKey = `wbot.${ticket.tenantId}.${sessionId}.${engineType}.message.send.list`;
+            routingKey = RabbitMQService_1.default.generateRoutingKey(ticket.tenantId, engineType, sessionId, "message.send.list");
         }
         else {
             throw new Error("Invalid interactive message: must have buttons or list");
         }
-        yield RabbitMQService_1.default.publishCommand(routingKey, command);
-        yield ticket.update({ lastMessage: body });
+        await RabbitMQService_1.default.publishCommand(routingKey, command);
+        await ticket.update({ lastMessage: body });
         return message;
     }
     catch (err) {
         throw new AppError_1.default("ERR_SENDING_WAPP_INTERACTIVE");
     }
-});
+};
 exports.default = SendWhatsAppInteractive;

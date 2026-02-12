@@ -91,13 +91,18 @@ export const StartWhatsAppSession = async (
     let commandType = "session.start";
     let exchange = "wbot.commands";
 
-    let routingKey = `wbot.${whatsapp.tenantId}.${whatsapp.id}.${whatsapp.engineType || "whaileys"}.session.start`;
+    let routingKey = RabbitMQService.generateRoutingKey(
+      whatsapp.tenantId,
+      whatsapp.engineType || "whaileys",
+      whatsapp.id,
+      "session.start"
+    );
 
     // WEBCHAT ROUTING LOGIC
     if (whatsapp.type === "webchat") {
       commandType = "webchat.session.start";
       exchange = "webchat.commands";
-      routingKey = `webchat.${whatsapp.tenantId}.${whatsapp.id}.session.start`;
+      routingKey = `webchat.tenant.${whatsapp.tenantId}.${whatsapp.id}.session.start`;
       logger.info(`Routing session ${whatsapp.id} to Webchat Engine`);
     }
 

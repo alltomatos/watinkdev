@@ -100,7 +100,12 @@ const SendWhatsAppMedia = async ({
       engineType = "whaileys";
     }
 
-    const routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType}.message.send.media`;
+    const routingKey = RabbitMQService.generateRoutingKey(
+      ticket.tenantId,
+      engineType,
+      ticket.whatsappId,
+      "message.send.media"
+    );
 
 
     await RabbitMQService.publishCommand(

@@ -32,146 +32,175 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const client = __importStar(require("amqplib"));
 const logger_1 = require("../utils/logger");
+const context_1 = __importDefault(require("../libs/context"));
 class RabbitMQService {
     constructor() {
         this.connection = null;
         this.channel = null;
         this.url = process.env.AMQP_URL || "amqp://guest:guest@localhost:5672";
     }
-    connect() {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                this.connection = (yield client.connect(this.url));
-                this.connection.on("error", (err) => {
-                    logger_1.logger.error("RabbitMQ Connection Error", err);
-                    setTimeout(() => this.connect(), 5000);
-                });
-                this.connection.on("close", () => {
-                    logger_1.logger.warn("RabbitMQ Connection Closed");
-                    setTimeout(() => this.connect(), 5000);
-                });
-                this.channel = yield this.connection.createChannel();
-                logger_1.logger.info("Connected to RabbitMQ");
-                yield this.setupExchanges();
-            }
-            catch (error) {
-                logger_1.logger.error("Failed to connect to RabbitMQ", error);
+    async connect() {
+        try {
+            this.connection = await client.connect(this.url);
+            this.connection.on("error", (err) => {
+                logger_1.logger.error("RabbitMQ Connection Error", err);
                 setTimeout(() => this.connect(), 5000);
-            }
-        });
+            });
+            this.connection.on("close", () => {
+                logger_1.logger.warn("RabbitMQ Connection Closed");
+                setTimeout(() => this.connect(), 5000);
+            });
+            this.channel = await this.connection.createChannel();
+            logger_1.logger.info("Connected to RabbitMQ");
+            await this.setupExchanges();
+        }
+        catch (error) {
+            logger_1.logger.error("Failed to connect to RabbitMQ", error);
+            setTimeout(() => this.connect(), 5000);
+        }
     }
-    setupExchanges() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this.channel)
-                return;
-            yield this.channel.assertExchange("wbot.commands", "topic", { durable: true });
-            yield this.channel.assertExchange("wbot.events", "topic", { durable: true });
-            // Setup Engine Queues
-            const standardQueue = yield this.channel.assertQueue("wbot_standard_commands", { durable: true });
-            yield this.channel.bindQueue(standardQueue.queue, "wbot.commands", "wbot.*.*.whaileys.#");
-            const goQueue = yield this.channel.assertQueue("wbot_go_commands", { durable: true });
-            yield this.channel.bindQueue(goQueue.queue, "wbot.commands", "wbot.*.*.whatsmeow.#");
-        });
+    isValidEnvelope(raw) {
+        return !!raw
+            && typeof raw === "object"
+            && typeof raw.id === "string"
+            && typeof raw.type === "string"
+            && typeof raw.timestamp === "number"
+            && (typeof raw.tenantId === "string" || typeof raw.tenantId === "number")
+            && Object.prototype.hasOwnProperty.call(raw, "payload");
     }
-    publishCommand(routingKey_1, message_1) {
-        return __awaiter(this, arguments, void 0, function* (routingKey, message, exchange = "wbot.commands") {
-            if (!this.channel) {
-                logger_1.logger.warn("Cannot publish command, channel is closed");
-                return;
-            }
-            logger_1.logger.info(`[RabbitMQ] Publishing command to ${routingKey} on exchange ${exchange}`);
-            this.channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(message)));
-        });
+    validateEnvelopeOrThrow(raw) {
+        if (!this.isValidEnvelope(raw)) {
+            throw new Error("Invalid AMQP envelope contract");
+        }
+        return raw;
     }
-    publishEvent(routingKey, message) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this.channel) {
-                logger_1.logger.warn("Cannot publish event, channel is closed");
-                return;
-            }
-            logger_1.logger.info(`[RabbitMQ] Publishing event to ${routingKey}`);
-            this.channel.publish("wbot.events", routingKey, Buffer.from(JSON.stringify(message)));
-        });
+    async setupExchanges() {
+        if (!this.channel)
+            return;
+        await this.channel.assertExchange("wbot.commands", "topic", { durable: true });
+        await this.channel.assertExchange("wbot.events", "topic", { durable: true });
+        // Setup Engine Queues (Legacy shared queues for backward compatibility during transition)
+        // In "Total Isolation" mode, these would be per-tenant, but for now we fix the bindings
+        const standardQueue = await this.channel.assertQueue("wbot_standard_commands", { durable: true });
+        await this.channel.bindQueue(standardQueue.queue, "wbot.commands", "wbot.tenant.*.whaileys.#");
+        const goQueue = await this.channel.assertQueue("wbot_go_commands", { durable: true });
+        await this.channel.bindQueue(goQueue.queue, "wbot.commands", "wbot.tenant.*.whatsmeow.#");
+        // PAPI Engine
+        const papiQueue = await this.channel.assertQueue("wbot_papi_commands", { durable: true });
+        await this.channel.bindQueue(papiQueue.queue, "wbot.commands", "wbot.tenant.*.papi.#");
     }
-    consumeEvents(queueName, routingKeys, handler) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this.channel)
-                return;
-            const q = yield this.channel.assertQueue(queueName, { durable: true });
-            for (const key of routingKeys) {
-                yield this.channel.bindQueue(q.queue, "wbot.events", key);
-            }
-            this.channel.consume(q.queue, (msg) => __awaiter(this, void 0, void 0, function* () {
-                var _a, _b;
-                if (msg) {
-                    try {
-                        const content = JSON.parse(msg.content.toString());
-                        yield handler(content);
+    /**
+     * Generates a restrictive routing key following the multi-tenancy contract.
+     * Format: wbot.tenant.{tenantId}.{engine}.{sessionId}.{type}
+     */
+    generateRoutingKey(tenantId, engine, sessionId, type) {
+        if (!tenantId)
+            throw new Error("tenantId is mandatory for routing keys");
+        return `wbot.tenant.${tenantId}.${engine}.${sessionId}.${type}`;
+    }
+    async publishCommand(routingKey, message, exchange = "wbot.commands") {
+        if (!this.channel) {
+            logger_1.logger.warn("Cannot publish command, channel is closed");
+            return false;
+        }
+        logger_1.logger.info(`[RabbitMQ] Publishing command to ${routingKey} on exchange ${exchange}`);
+        return this.channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(message)));
+    }
+    async publishEvent(routingKey, message) {
+        if (!this.channel) {
+            logger_1.logger.warn("Cannot publish event, channel is closed");
+            return;
+        }
+        logger_1.logger.info(`[RabbitMQ] Publishing event to ${routingKey}`);
+        this.channel.publish("wbot.events", routingKey, Buffer.from(JSON.stringify(message)));
+    }
+    async consumeEvents(queueName, routingKeys, handler, authorizedTenantId) {
+        if (!this.channel)
+            return;
+        const q = await this.channel.assertQueue(queueName, { durable: true });
+        for (const key of routingKeys) {
+            await this.channel.bindQueue(q.queue, "wbot.events", key);
+        }
+        this.channel.consume(q.queue, async (msg) => {
+            var _a, _b, _c;
+            if (msg) {
+                try {
+                    const raw = JSON.parse(msg.content.toString());
+                    const content = this.validateEnvelopeOrThrow(raw);
+                    // Security Check: Total Isolation
+                    if (authorizedTenantId && String(content.tenantId) !== String(authorizedTenantId)) {
+                        logger_1.logger.error(`[Security] Worker authorized for tenant ${authorizedTenantId} received message for tenant ${content.tenantId}. Ignoring.`);
                         (_a = this.channel) === null || _a === void 0 ? void 0 : _a.ack(msg);
+                        return;
                     }
-                    catch (error) {
-                        logger_1.logger.error(`Error processing event: ${error.message}\n${error.stack}`);
-                        (_b = this.channel) === null || _b === void 0 ? void 0 : _b.nack(msg, false, false);
-                    }
+                    // Fix Context Propagation
+                    await context_1.default.run({ tenantId: String(content.tenantId) }, async () => {
+                        await handler(content);
+                    });
+                    (_b = this.channel) === null || _b === void 0 ? void 0 : _b.ack(msg);
                 }
-            }));
-        });
-    }
-    consumeCommands(queueName, routingKeys, handler) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this.channel)
-                return;
-            const q = yield this.channel.assertQueue(queueName, { durable: true });
-            for (const key of routingKeys) {
-                yield this.channel.bindQueue(q.queue, "wbot.commands", key);
+                catch (error) {
+                    logger_1.logger.error(`Error processing event: ${error.message}\n${error.stack}`);
+                    (_c = this.channel) === null || _c === void 0 ? void 0 : _c.nack(msg, false, false);
+                }
             }
-            this.channel.consume(q.queue, (msg) => __awaiter(this, void 0, void 0, function* () {
-                var _a, _b;
-                if (msg) {
-                    try {
-                        const content = JSON.parse(msg.content.toString());
-                        yield handler(content);
-                        (_a = this.channel) === null || _a === void 0 ? void 0 : _a.ack(msg);
-                    }
-                    catch (error) {
-                        logger_1.logger.error("Error processing command", error);
-                        (_b = this.channel) === null || _b === void 0 ? void 0 : _b.nack(msg, false, false);
-                    }
-                }
-            }));
         });
     }
-    consumeQueue(queueName, handler) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this.channel)
-                return;
-            yield this.channel.assertQueue(queueName, { durable: true });
-            this.channel.consume(queueName, (msg) => __awaiter(this, void 0, void 0, function* () {
-                var _a, _b;
-                if (msg) {
-                    try {
-                        const content = JSON.parse(msg.content.toString());
-                        yield handler(content);
+    async consumeCommands(queueName, routingKeys, handler, authorizedTenantId) {
+        if (!this.channel)
+            return;
+        const q = await this.channel.assertQueue(queueName, { durable: true });
+        for (const key of routingKeys) {
+            await this.channel.bindQueue(q.queue, "wbot.commands", key);
+        }
+        this.channel.consume(q.queue, async (msg) => {
+            var _a, _b, _c;
+            if (msg) {
+                try {
+                    const raw = JSON.parse(msg.content.toString());
+                    const content = this.validateEnvelopeOrThrow(raw);
+                    // Security Check: Total Isolation
+                    if (authorizedTenantId && String(content.tenantId) !== String(authorizedTenantId)) {
+                        logger_1.logger.error(`[Security] Command worker authorized for tenant ${authorizedTenantId} received message for tenant ${content.tenantId}. Ignoring.`);
                         (_a = this.channel) === null || _a === void 0 ? void 0 : _a.ack(msg);
+                        return;
                     }
-                    catch (error) {
-                        logger_1.logger.error(`Error processing queue message: ${error.message}`);
-                        (_b = this.channel) === null || _b === void 0 ? void 0 : _b.nack(msg, false, false);
-                    }
+                    // Fix Context Propagation
+                    await context_1.default.run({ tenantId: String(content.tenantId) }, async () => {
+                        await handler(content);
+                    });
+                    (_b = this.channel) === null || _b === void 0 ? void 0 : _b.ack(msg);
                 }
-            }));
+                catch (error) {
+                    logger_1.logger.error("Error processing command", error);
+                    (_c = this.channel) === null || _c === void 0 ? void 0 : _c.nack(msg, false, false);
+                }
+            }
+        });
+    }
+    async consumeQueue(queueName, handler) {
+        if (!this.channel)
+            return;
+        await this.channel.assertQueue(queueName, { durable: true });
+        this.channel.consume(queueName, async (msg) => {
+            var _a, _b;
+            if (msg) {
+                try {
+                    const content = JSON.parse(msg.content.toString());
+                    await handler(content);
+                    (_a = this.channel) === null || _a === void 0 ? void 0 : _a.ack(msg);
+                }
+                catch (error) {
+                    logger_1.logger.error(`Error processing queue message: ${error.message}`);
+                    (_b = this.channel) === null || _b === void 0 ? void 0 : _b.nack(msg, false, false);
+                }
+            }
         });
     }
 }

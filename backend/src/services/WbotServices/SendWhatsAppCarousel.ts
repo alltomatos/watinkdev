@@ -106,7 +106,12 @@ const SendWhatsAppCarousel = async ({
         if (!engineType) engineType = "whaileys";
 
         await RabbitMQService.publishCommand(
-            `wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType}.message.send.carousel`,
+            RabbitMQService.generateRoutingKey(
+                ticket.tenantId,
+                engineType,
+                ticket.whatsappId,
+                "message.send.carousel"
+            ),
             command
         );
 

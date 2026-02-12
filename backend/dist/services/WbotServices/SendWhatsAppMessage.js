@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -21,8 +12,8 @@ const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const Message_1 = __importDefault(require("../../models/Message"));
 const socket_1 = require("../../libs/socket");
 const GenerateWAMessageId_1 = __importDefault(require("../../helpers/GenerateWAMessageId"));
-const SendWhatsAppMessage = (_a) => __awaiter(void 0, [_a], void 0, function* ({ body, ticket, quotedMsg, mentionedIds }) {
-    var _b, _c;
+const SendWhatsAppMessage = async ({ body, ticket, quotedMsg, mentionedIds }) => {
+    var _a, _b;
     try {
         const formattedBody = (0, Mustache_1.default)(body, ticket.contact);
         if (!ticket.whatsappId) {
@@ -43,8 +34,8 @@ const SendWhatsAppMessage = (_a) => __awaiter(void 0, [_a], void 0, function* ({
             timestamp: new Date().getTime(),
             tenantId: ticket.tenantId
         };
-        const message = yield Message_1.default.create(messageData);
-        const messageComplete = yield Message_1.default.findByPk(message.id, {
+        const message = await Message_1.default.create(messageData);
+        const messageComplete = await Message_1.default.findByPk(message.id, {
             include: [
                 { model: Ticket_1.default, as: "ticket" },
                 { model: Message_1.default, as: "quotedMsg", include: ["contact"] }
@@ -75,7 +66,7 @@ const SendWhatsAppMessage = (_a) => __awaiter(void 0, [_a], void 0, function* ({
                         key: {
                             id: quotedMsg.id,
                             fromMe: quotedMsg.fromMe,
-                            participant: quotedMsg.isGroup ? quotedMsg.participant || ((_b = quotedMsg.contact) === null || _b === void 0 ? void 0 : _b.number) + "@s.whatsapp.net" : undefined
+                            participant: quotedMsg.isGroup ? quotedMsg.participant || ((_a = quotedMsg.contact) === null || _a === void 0 ? void 0 : _a.number) + "@s.whatsapp.net" : undefined
                         },
                         message: quotedMsg.dataJson // Optional but helpful
                     } : undefined
@@ -83,18 +74,18 @@ const SendWhatsAppMessage = (_a) => __awaiter(void 0, [_a], void 0, function* ({
             }
         };
         // Determine Routing Key based on Engine Type
-        let engineType = (_c = ticket.whatsapp) === null || _c === void 0 ? void 0 : _c.engineType;
+        let engineType = (_b = ticket.whatsapp) === null || _b === void 0 ? void 0 : _b.engineType;
         if (!engineType) {
-            const whatsapp = yield Whatsapp_1.default.findByPk(ticket.whatsappId);
+            const whatsapp = await Whatsapp_1.default.findByPk(ticket.whatsappId);
             engineType = whatsapp === null || whatsapp === void 0 ? void 0 : whatsapp.engineType;
         }
         if (!engineType) {
             // Default to whaileys if not found (legacy fallback)
             engineType = "whaileys";
         }
-        const routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType}.message.send.text`;
-        yield RabbitMQService_1.default.publishCommand(routingKey, command);
-        yield ticket.update({ lastMessage: body });
+        const routingKey = RabbitMQService_1.default.generateRoutingKey(ticket.tenantId, engineType, ticket.whatsappId, "message.send.text");
+        await RabbitMQService_1.default.publishCommand(routingKey, command);
+        await ticket.update({ lastMessage: body });
         return message;
     }
     catch (err) {
@@ -103,5 +94,5 @@ const SendWhatsAppMessage = (_a) => __awaiter(void 0, [_a], void 0, function* ({
         logger.error(err);
         throw new AppError_1.default("ERR_SENDING_WAPP_MSG");
     }
-});
+};
 exports.default = SendWhatsAppMessage;

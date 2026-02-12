@@ -55,6 +55,11 @@ export class RabbitMQ {
     );
   }
 
+  public generateRoutingKey(tenantId: string | number, engine: string, sessionId: string | number, type: string): string {
+    if (!tenantId) throw new Error("tenantId is mandatory for routing keys");
+    return `wbot.tenant.${tenantId}.${engine}.${sessionId}.${type}`;
+  }
+
   async consumeCommands(handler: (msg: Envelope) => Promise<void>): Promise<void> {
     this.handler = handler;
     if (this.channel) {
@@ -70,8 +75,8 @@ export class RabbitMQ {
 
     await this.channel.bindQueue(q.queue, "wbot.commands", "command.general");
     // Bind only whaileys commands
-    // Pattern: wbot.<tenantId>.<sessionId>.<engineType>.<commandType>
-    await this.channel.bindQueue(q.queue, "wbot.commands", "wbot.*.*.whaileys.#");
+    // Pattern: wbot.tenant.<tenantId>.<engineType>.<sessionId>.<commandType>
+    await this.channel.bindQueue(q.queue, "wbot.commands", "wbot.tenant.*.whaileys.#");
 
     this.channel.consume(q.queue, async (msg: ConsumeMessage | null) => {
       if (msg) {

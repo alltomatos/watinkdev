@@ -3,6 +3,9 @@ import Whatsapp from "../models/Whatsapp";
 import GetDefaultWhatsAppByUser from "./GetDefaultWhatsAppByUser";
 
 const GetDefaultWhatsApp = async (userId?: number): Promise<Whatsapp> => {
+  const ctx = require("./context").default.getStore();
+  const effectiveTenantId = ctx?.tenantId;
+
   if (userId) {
     const whatsappByUser = await GetDefaultWhatsAppByUser(userId);
     if (whatsappByUser !== null) {
@@ -10,11 +13,15 @@ const GetDefaultWhatsApp = async (userId?: number): Promise<Whatsapp> => {
     }
   }
 
+  const where: any = { isDefault: true };
+  if (effectiveTenantId) where.tenantId = effectiveTenantId;
+
   const defaultWhatsapp = await Whatsapp.findOne({
-    where: { isDefault: true }
+    where
   });
 
   if (!defaultWhatsapp) {
+    // If no default for tenant, try absolute default (optional) or fail
     throw new AppError("ERR_NO_DEF_WAPP_FOUND");
   }
 

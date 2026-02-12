@@ -8,10 +8,14 @@ const SerializeUser = (user) => {
     const groupRoles = ((_a = user.groups) === null || _a === void 0 ? void 0 : _a.flatMap(g => { var _a; return (_a = g.roles) === null || _a === void 0 ? void 0 : _a.flatMap(r => { var _a; return (_a = r.permissions) === null || _a === void 0 ? void 0 : _a.map(p => `${p.resource}:${p.action}`); }); })) || [];
     const groupDirect = ((_b = user.groups) === null || _b === void 0 ? void 0 : _b.flatMap(g => { var _a; return (_a = g.permissions) === null || _a === void 0 ? void 0 : _a.map(p => `${p.resource}:${p.action}`); })) || [];
     const directRoles = ((_c = user.roles) === null || _c === void 0 ? void 0 : _c.flatMap(r => { var _a; return (_a = r.permissions) === null || _a === void 0 ? void 0 : _a.map(p => `${p.resource}:${p.action}`); })) || [];
-    const allPermissions = [...new Set([...groupRoles, ...groupDirect, ...directRoles])];
     // Determine profile based on roles for legacy compatibility
     const isAdmin = ((_d = user.roles) === null || _d === void 0 ? void 0 : _d.some(role => role.name === "Admin")) || user.email === "admin@admin.com";
     const profile = isAdmin ? "admin" : "user";
+    let allPermissions = [...new Set([...groupRoles, ...groupDirect, ...directRoles])];
+    // System Admin/Tenant Admin: Grant all if profile is admin
+    if (isAdmin && !allPermissions.includes("*:*")) {
+        allPermissions.push("*:*");
+    }
     return {
         id: user.id,
         name: user.name,

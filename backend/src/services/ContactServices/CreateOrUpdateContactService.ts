@@ -230,19 +230,22 @@ const CreateOrUpdateContactService = async ({
       const whatsapp = await Whatsapp.findByPk(sessionId);
 
       if (whatsapp) {
-        await RabbitMQService.publishCommand(`wbot.${tenantId}.${sessionId}.${whatsapp.engineType}.contact.sync`, {
-          id: uuidv4(),
-          timestamp: Date.now(),
-          tenantId,
-          type: "contact.sync",
-          payload: {
-            sessionId,
-            contactId: contact.id,
-            number: contact.number,
-            lid: contact.lid || undefined,
-            isGroup
+        await RabbitMQService.publishCommand(
+          RabbitMQService.generateRoutingKey(tenantId, whatsapp.engineType, sessionId, "contact.sync"),
+          {
+            id: uuidv4(),
+            timestamp: Date.now(),
+            tenantId,
+            type: "contact.sync",
+            payload: {
+              sessionId,
+              contactId: contact.id,
+              number: contact.number,
+              lid: contact.lid || undefined,
+              isGroup
+            }
           }
-        });
+        );
 
         await waitForContactEnrichment(contact.id, isGroup, tenantId);
         await contact.reload();

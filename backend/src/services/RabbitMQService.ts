@@ -2,6 +2,7 @@ import * as client from "amqplib";
 import { Connection, Channel, ConsumeMessage } from "amqplib";
 import { logger } from "../utils/logger";
 import { Envelope } from "../microservice/contracts";
+import context from "../libs/context";
 
 class RabbitMQService {
   private connection: any = null;
@@ -39,6 +40,7 @@ class RabbitMQService {
   private isValidEnvelope(raw: any): raw is Envelope {
     return !!raw
       && typeof raw === "object"
+      && typeof raw.id === "string"
       && typeof raw.type === "string"
       && typeof raw.timestamp === "number"
       && (typeof raw.tenantId === "string" || typeof raw.tenantId === "number")
@@ -58,12 +60,26 @@ class RabbitMQService {
     await this.channel.assertExchange("wbot.commands", "topic", { durable: true });
     await this.channel.assertExchange("wbot.events", "topic", { durable: true });
 
-    // Setup Engine Queues
+    // Setup Engine Queues (Legacy shared queues for backward compatibility during transition)
+    // In "Total Isolation" mode, these would be per-tenant, but for now we fix the bindings
     const standardQueue = await this.channel.assertQueue("wbot_standard_commands", { durable: true });
-    await this.channel.bindQueue(standardQueue.queue, "wbot.commands", "wbot.*.*.whaileys.#");
+    await this.channel.bindQueue(standardQueue.queue, "wbot.commands", "wbot.tenant.*.whaileys.#");
 
     const goQueue = await this.channel.assertQueue("wbot_go_commands", { durable: true });
-    await this.channel.bindQueue(goQueue.queue, "wbot.commands", "wbot.*.*.whatsmeow.#");
+    await this.channel.bindQueue(goQueue.queue, "wbot.commands", "wbot.tenant.*.whatsmeow.#");
+    
+    // PAPI Engine
+    const papiQueue = await this.channel.assertQueue("wbot_papi_commands", { durable: true });
+    await this.channel.bindQueue(papiQueue.queue, "wbot.commands", "wbot.tenant.*.papi.#");
+  }
+
+  /**
+   * Generates a restrictive routing key following the multi-tenancy contract.
+   * Format: wbot.tenant.{tenantId}.{engine}.{sessionId}.{type}
+   */
+  public generateRoutingKey(tenantId: string | number, engine: string, sessionId: string | number, type: string): string {
+    if (!tenantId) throw new Error("tenantId is mandatory for routing keys");
+    return `wbot.tenant.${tenantId}.${engine}.${sessionId}.${type}`;
   }
 
   async publishCommand(routingKey: string, message: Envelope, exchange: string = "wbot.commands"): Promise<boolean> {
@@ -94,7 +110,7 @@ class RabbitMQService {
     );
   }
 
-  async consumeEvents(queueName: string, routingKeys: string[], handler: (msg: Envelope) => Promise<void>): Promise<void> {
+  async consumeEvents(queueName: string, routingKeys: string[], handler: (msg: Envelope) => Promise<void>, authorizedTenantId?: string | number): Promise<void> {
     if (!this.channel) return;
 
     const q = await this.channel.assertQueue(queueName, { durable: true });
@@ -108,7 +124,19 @@ class RabbitMQService {
         try {
           const raw = JSON.parse(msg.content.toString());
           const content = this.validateEnvelopeOrThrow(raw);
-          await handler(content);
+
+          // Security Check: Total Isolation
+          if (authorizedTenantId && String(content.tenantId) !== String(authorizedTenantId)) {
+            logger.error(`[Security] Worker authorized for tenant ${authorizedTenantId} received message for tenant ${content.tenantId}. Ignoring.`);
+            this.channel?.ack(msg);
+            return;
+          }
+
+          // Fix Context Propagation
+          await context.run({ tenantId: String(content.tenantId) }, async () => {
+            await handler(content);
+          });
+          
           this.channel?.ack(msg);
         } catch (error) {
           logger.error(`Error processing event: ${(error as Error).message}\n${(error as Error).stack}`);
@@ -118,7 +146,7 @@ class RabbitMQService {
     });
   }
 
-  async consumeCommands(queueName: string, routingKeys: string[], handler: (msg: Envelope) => Promise<void>): Promise<void> {
+  async consumeCommands(queueName: string, routingKeys: string[], handler: (msg: Envelope) => Promise<void>, authorizedTenantId?: string | number): Promise<void> {
     if (!this.channel) return;
 
     const q = await this.channel.assertQueue(queueName, { durable: true });
@@ -132,7 +160,19 @@ class RabbitMQService {
         try {
           const raw = JSON.parse(msg.content.toString());
           const content = this.validateEnvelopeOrThrow(raw);
-          await handler(content);
+
+          // Security Check: Total Isolation
+          if (authorizedTenantId && String(content.tenantId) !== String(authorizedTenantId)) {
+            logger.error(`[Security] Command worker authorized for tenant ${authorizedTenantId} received message for tenant ${content.tenantId}. Ignoring.`);
+            this.channel?.ack(msg);
+            return;
+          }
+
+          // Fix Context Propagation
+          await context.run({ tenantId: String(content.tenantId) }, async () => {
+             await handler(content);
+          });
+
           this.channel?.ack(msg);
         } catch (error) {
           logger.error("Error processing command", error);

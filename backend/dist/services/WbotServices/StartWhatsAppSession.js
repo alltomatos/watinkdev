@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -22,20 +13,20 @@ const logger_1 = require("../../utils/logger");
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const RedisService_1 = require("../RedisService");
 const AppError_1 = __importDefault(require("../../errors/AppError"));
-const StartWhatsAppSession = (whatsapp, usePairingCode, phoneNumber, force // New param
-) => __awaiter(void 0, void 0, void 0, function* () {
+const StartWhatsAppSession = async (whatsapp, usePairingCode, phoneNumber, force // New param
+) => {
     // REDIS LOCK IMPLEMENTATION
     const redis = RedisService_1.RedisService.getInstance();
     const lockKey = `session:start:${whatsapp.id}`;
     const lockValue = (0, uuid_1.v4)();
     // Try to acquire lock for 10 seconds to prevent double-starts from UI Spam
-    const acquired = yield redis.setNx(lockKey, lockValue, 10);
+    const acquired = await redis.setNx(lockKey, lockValue, 10);
     if (!acquired) {
         logger_1.logger.warn(`StartWhatsAppSession: Blocked double start attempt for session ${whatsapp.id}`);
         throw new AppError_1.default("ERR_SESSION_STARTING_ALREADY", 400);
     }
     try {
-        yield whatsapp.update({ status: "OPENING" });
+        await whatsapp.update({ status: "OPENING" });
         logger_1.logger.info(`StartWhatsAppSession called for session ${whatsapp.id} (Type: ${whatsapp.type})`);
         const io = (0, socket_1.getIO)();
         io.emit("whatsappSession", {
@@ -48,9 +39,9 @@ const StartWhatsAppSession = (whatsapp, usePairingCode, phoneNumber, force // Ne
         let papiKey;
         if (whatsapp.engineType === "papi") {
             logger_1.logger.info(`StartWhatsAppSession: Checking PAPI plugin status for tenant ${whatsapp.tenantId}`);
-            const plugin = yield Plugin_1.default.findOne({ where: { slug: "engine-papi" } });
+            const plugin = await Plugin_1.default.findOne({ where: { slug: "engine-papi" } });
             if (plugin) {
-                const installation = yield PluginInstallation_1.default.findOne({
+                const installation = await PluginInstallation_1.default.findOne({
                     where: {
                         pluginId: plugin.id,
                         tenantId: whatsapp.tenantId,
@@ -63,8 +54,8 @@ const StartWhatsAppSession = (whatsapp, usePairingCode, phoneNumber, force // Ne
                 }
                 logger_1.logger.info(`StartWhatsAppSession: PAPI plugin active. Fetching settings.`);
                 // Fetch settings for PAPI
-                const urlSetting = yield Setting_1.default.findOne({ where: { key: "papiUrl", tenantId: whatsapp.tenantId } });
-                const keySetting = yield Setting_1.default.findOne({ where: { key: "papiKey", tenantId: whatsapp.tenantId } });
+                const urlSetting = await Setting_1.default.findOne({ where: { key: "papiUrl", tenantId: whatsapp.tenantId } });
+                const keySetting = await Setting_1.default.findOne({ where: { key: "papiKey", tenantId: whatsapp.tenantId } });
                 papiUrl = urlSetting === null || urlSetting === void 0 ? void 0 : urlSetting.value;
                 papiKey = keySetting === null || keySetting === void 0 ? void 0 : keySetting.value;
                 if (!papiUrl) {
@@ -85,12 +76,12 @@ const StartWhatsAppSession = (whatsapp, usePairingCode, phoneNumber, force // Ne
         const papiWebhookUrl = `${cleanDomain}/plugins/papi/webhook`;
         let commandType = "session.start";
         let exchange = "wbot.commands";
-        let routingKey = `wbot.${whatsapp.tenantId}.${whatsapp.id}.${whatsapp.engineType || "whaileys"}.session.start`;
+        let routingKey = RabbitMQService_1.default.generateRoutingKey(whatsapp.tenantId, whatsapp.engineType || "whaileys", whatsapp.id, "session.start");
         // WEBCHAT ROUTING LOGIC
         if (whatsapp.type === "webchat") {
             commandType = "webchat.session.start";
             exchange = "webchat.commands";
-            routingKey = `webchat.${whatsapp.tenantId}.${whatsapp.id}.session.start`;
+            routingKey = `webchat.tenant.${whatsapp.tenantId}.${whatsapp.id}.session.start`;
             logger_1.logger.info(`Routing session ${whatsapp.id} to Webchat Engine`);
         }
         const command = {
@@ -114,12 +105,12 @@ const StartWhatsAppSession = (whatsapp, usePairingCode, phoneNumber, force // Ne
                 webhookUrl: papiWebhookUrl // [NEW] Pass auto-generated webhook URL
             }
         };
-        yield RabbitMQService_1.default.publishCommand(routingKey, command, exchange);
+        await RabbitMQService_1.default.publishCommand(routingKey, command, exchange);
         logger_1.logger.info(`Session start command published for session ${whatsapp.id} (Instance: ${sessionInstanceId})`);
     }
     catch (err) {
         // Release lock on error
-        yield redis.delValue(lockKey);
+        await redis.delValue(lockKey);
         logger_1.logger.error(err);
         // Re-throw if needed, or let controller handle it.
         // Since this function is void and async, throwing here might be caught by Controller.
@@ -127,5 +118,5 @@ const StartWhatsAppSession = (whatsapp, usePairingCode, phoneNumber, force // Ne
     }
     // Note: We do NOT release the lock immediately on success, we let it expire (TTL 10s)
     // to act as a debounce buffer for the "Start" button.
-});
+};
 exports.StartWhatsAppSession = StartWhatsAppSession;

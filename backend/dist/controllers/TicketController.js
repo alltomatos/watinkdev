@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -29,14 +20,14 @@ const AppError_1 = __importDefault(require("../errors/AppError"));
 const RabbitMQService_1 = __importDefault(require("../services/RabbitMQService"));
 const Message_1 = __importDefault(require("../models/Message"));
 const Contact_1 = __importDefault(require("../models/Contact"));
-const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const index = async (req, res) => {
     const { pageNumber, status, date, searchParam, showAll, queueIds: queueIdsStringified, withUnreadMessages, isGroup } = req.query;
     const userId = req.user.id;
     let queueIds = [];
     if (queueIdsStringified) {
         queueIds = JSON.parse(queueIdsStringified);
     }
-    const { tickets, count, hasMore } = yield (0, ListTicketsService_1.default)({
+    const { tickets, count, hasMore } = await (0, ListTicketsService_1.default)({
         searchParam,
         pageNumber,
         status,
@@ -50,58 +41,58 @@ const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         profile: req.user.profile
     });
     return res.status(200).json({ tickets, count, hasMore });
-});
+};
 exports.index = index;
-const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const store = async (req, res) => {
     const { contactId, status, userId } = req.body;
-    const ticket = yield (0, CreateTicketService_1.default)({ contactId, status, userId });
+    const ticket = await (0, CreateTicketService_1.default)({ contactId, status, userId });
     const io = (0, socket_1.getIO)();
     io.to(ticket.status).emit("ticket", {
         action: "update",
         ticket
     });
     return res.status(200).json(ticket);
-});
+};
 exports.store = store;
-const show = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const show = async (req, res) => {
     const { ticketId } = req.params;
-    const contact = yield (0, ShowTicketService_1.default)(ticketId);
+    const contact = await (0, ShowTicketService_1.default)(ticketId);
     return res.status(200).json(contact);
-});
+};
 exports.show = show;
-const update = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const update = async (req, res) => {
     const { ticketId } = req.params;
     const ticketData = req.body;
-    const { ticket } = yield (0, UpdateTicketService_1.default)({
+    const { ticket } = await (0, UpdateTicketService_1.default)({
         ticketData,
         ticketId
     });
     if (ticket.status === "closed") {
-        const whatsapp = yield (0, ShowWhatsAppService_1.default)(ticket.whatsappId);
+        const whatsapp = await (0, ShowWhatsAppService_1.default)(ticket.whatsappId);
         const { farewellMessage } = whatsapp;
         if (farewellMessage) {
-            yield (0, SendWhatsAppMessage_1.default)({
+            await (0, SendWhatsAppMessage_1.default)({
                 body: (0, Mustache_1.default)(farewellMessage, ticket.contact),
                 ticket
             });
         }
     }
     return res.status(200).json(ticket);
-});
+};
 exports.update = update;
-const remove = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const remove = async (req, res) => {
     const { ticketId } = req.params;
-    const ticket = yield (0, DeleteTicketService_1.default)(ticketId);
+    const ticket = await (0, DeleteTicketService_1.default)(ticketId);
     const io = (0, socket_1.getIO)();
     io.to(ticket.status).to(ticketId).to("notification").emit("ticket", {
         action: "delete",
         ticketId: +ticketId
     });
     return res.status(200).json({ message: "ticket deleted" });
-});
+};
 exports.remove = remove;
 // Novo: Buscar histórico de mensagens sob demanda
-const syncHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const syncHistory = async (req, res) => {
     var _a, _b;
     const { ticketId } = req.params;
     const { fromDate, toDate } = req.body;
@@ -109,7 +100,7 @@ const syncHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     if (!fromDate) {
         throw new AppError_1.default("ERR_DATE_REQUIRED", 400);
     }
-    const ticket = yield Ticket_1.default.findByPk(ticketId, {
+    const ticket = await Ticket_1.default.findByPk(ticketId, {
         include: ["contact", "whatsapp"]
     });
     if (!ticket) {
@@ -137,18 +128,18 @@ const syncHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         }
     };
     const engineType = ticket.whatsapp.engineType || "whaileys";
-    yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${ticket.whatsappId}.${engineType}.history.sync`, command);
+    await RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${ticket.whatsappId}.${engineType}.history.sync`, command);
     return res.status(202).json({
         message: "Sincronização de histórico iniciada",
         ticketId: ticket.id
     });
-});
+};
 exports.syncHistory = syncHistory;
-const closeAll = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const closeAll = async (req, res) => {
     const { tenantId } = req.user;
     const userId = Number(req.user.id);
     const { statusOpen, statusPending, includeGroups } = req.body;
-    const closedCount = yield (0, CloseAllTicketsService_1.default)({
+    const closedCount = await (0, CloseAllTicketsService_1.default)({
         tenantId,
         userId,
         statusOpen,
@@ -156,23 +147,23 @@ const closeAll = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         includeGroups
     });
     return res.status(200).json({ closedCount });
-});
+};
 exports.closeAll = closeAll;
-const showParticipants = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const showParticipants = async (req, res) => {
     const { ticketId } = req.params;
     // Find distinct contacts who sent messages in this ticket
-    const messages = yield Message_1.default.findAll({
+    const messages = await Message_1.default.findAll({
         where: { ticketId },
         attributes: ["contactId"],
         group: ["contactId"]
     });
     const contactIds = messages.map(m => m.contactId);
-    const participants = yield Contact_1.default.findAll({
+    const participants = await Contact_1.default.findAll({
         where: {
             id: contactIds
         },
         attributes: ["id", "name", "number", "profilePicUrl"]
     });
     return res.status(200).json(participants);
-});
+};
 exports.showParticipants = showParticipants;

@@ -2,6 +2,7 @@ import { verify } from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import AppError from "../errors/AppError";
 import authConfig from "../config/auth";
+import context from "../libs/context";
 
 interface TokenPayload {
   id: string;
@@ -33,6 +34,10 @@ const isSaasAuth = async (req: Request, res: Response, next: NextFunction): Prom
       id,
       tenantId: tenantId.toString()
     };
+
+    return context.run({ tenantId: tenantId.toString(), userId: id }, () => {
+      return next();
+    });
   } catch (err) {
     console.error(`[SaaS Auth] Token verification failed:`, err);
     throw new AppError("ERR_INVALID_TOKEN", 401);

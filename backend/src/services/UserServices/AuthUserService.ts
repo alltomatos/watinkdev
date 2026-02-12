@@ -5,6 +5,7 @@ import {
   createRefreshToken
 } from "../../helpers/CreateTokens";
 import { SerializeUser } from "../../helpers/SerializeUser";
+import context from "../../libs/context";
 import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
 import Group from "../../models/Group";
@@ -123,16 +124,19 @@ const AuthUserService = async ({
     }
   }
 
-  const token = createAccessToken(user);
-  const refreshToken = createRefreshToken(user);
+  // Force tenant isolation in Sequelize hooks via context
+  return context.run({ tenantId: user.tenantId.toString(), userId: user.id.toString() }, () => {
+    const token = createAccessToken(user);
+    const refreshToken = createRefreshToken(user);
 
-  const serializedUser = SerializeUser(user);
+    const serializedUser = SerializeUser(user);
 
-  return {
-    serializedUser,
-    token,
-    refreshToken
-  };
+    return {
+      serializedUser,
+      token,
+      refreshToken
+    };
+  });
 };
 
 export default AuthUserService;

@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -60,7 +51,7 @@ const ImportContactsService_1 = __importStar(require("../services/ContactService
 const AppError_1 = __importDefault(require("../errors/AppError"));
 const GetContactService_1 = __importDefault(require("../services/ContactServices/GetContactService"));
 const Whatsapp_1 = __importDefault(require("../models/Whatsapp"));
-const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const index = async (req, res) => {
     const { searchParam, pageNumber, tags } = req.query;
     const { tenantId } = req.user;
     // Converter tags para array de números se vier como string ou array
@@ -73,25 +64,25 @@ const index = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             tagIds = [+tags];
         }
     }
-    const { contacts, count, hasMore } = yield (0, ListContactsService_1.default)({
+    const { contacts, count, hasMore } = await (0, ListContactsService_1.default)({
         searchParam,
         pageNumber,
         tags: tagIds.length > 0 ? tagIds : undefined,
         tenantId
     });
     return res.json({ contacts, count, hasMore });
-});
+};
 exports.index = index;
-const getContact = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getContact = async (req, res) => {
     const { name, number } = req.body;
-    const contact = yield (0, GetContactService_1.default)({
+    const contact = await (0, GetContactService_1.default)({
         name,
         number
     });
     return res.status(200).json(contact);
-});
+};
 exports.getContact = getContact;
-const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const store = async (req, res) => {
     const { tenantId } = req.user;
     console.log(`[ContactController.store] Creating contact for user: ${JSON.stringify(req.user)}, tenantId: ${tenantId}, type: ${typeof tenantId}`);
     const newContact = req.body;
@@ -103,7 +94,7 @@ const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             .matches(/^\d+$/, "Invalid number format. Only numbers is allowed.")
     });
     try {
-        yield schema.validate(newContact);
+        await schema.validate(newContact);
     }
     catch (err) {
         throw new AppError_1.default(err.message);
@@ -117,7 +108,7 @@ const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     let extraInfo = newContact.extraInfo;
     let tags = newContact.tags;
     try {
-        const contact = yield (0, CreateContactService_1.default)({
+        const contact = await (0, CreateContactService_1.default)({
             name,
             number,
             email,
@@ -139,57 +130,57 @@ const store = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         console.error("Error in ContactController.store:", err);
         throw new AppError_1.default("INTERNAL_ERR_CREATING_CONTACT: " + err.message, 500);
     }
-});
+};
 exports.store = store;
-const show = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const show = async (req, res) => {
     const { contactId } = req.params;
-    const contact = yield (0, ShowContactService_1.default)(contactId);
+    const contact = await (0, ShowContactService_1.default)(contactId);
     return res.status(200).json(contact);
-});
+};
 exports.show = show;
-const update = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const update = async (req, res) => {
     const contactData = req.body;
     const schema = Yup.object().shape({
         name: Yup.string(),
         number: Yup.string().matches(/^\d+$/, "Invalid number format. Only numbers is allowed.")
     });
     try {
-        yield schema.validate(contactData);
+        await schema.validate(contactData);
     }
     catch (err) {
         throw new AppError_1.default(err.message);
     }
     const { contactId } = req.params;
-    const contact = yield (0, UpdateContactService_1.default)({ contactData, contactId });
+    const contact = await (0, UpdateContactService_1.default)({ contactData, contactId });
     const io = (0, socket_1.getIO)();
     io.emit("contact", {
         action: "update",
         contact
     });
     return res.status(200).json(contact);
-});
+};
 exports.update = update;
-const remove = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const remove = async (req, res) => {
     const { contactId } = req.params;
-    yield (0, DeleteContactService_1.default)(contactId);
+    await (0, DeleteContactService_1.default)(contactId);
     const io = (0, socket_1.getIO)();
     io.emit("contact", {
         action: "delete",
         contactId
     });
     return res.status(200).json({ message: "Contact deleted" });
-});
+};
 exports.remove = remove;
-const sync = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const sync = async (req, res) => {
     const { contactId } = req.params;
     const { tenantId } = req.user;
     try {
-        const contact = yield (0, ShowContactService_1.default)(contactId);
-        const whatsapp = yield Whatsapp_1.default.findOne({
+        const contact = await (0, ShowContactService_1.default)(contactId);
+        const whatsapp = await Whatsapp_1.default.findOne({
             where: { tenantId, status: "CONNECTED" }
         });
         if (whatsapp) {
-            yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`, {
+            await RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`, {
                 id: (0, uuid_1.v4)(),
                 timestamp: Date.now(),
                 type: "contact.sync",
@@ -207,16 +198,16 @@ const sync = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     catch (error) {
         throw new AppError_1.default(error.message);
     }
-});
+};
 exports.sync = sync;
-const batchEnrich = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const batchEnrich = async (req, res) => {
     const { tenantId } = req.user;
     if (!tenantId) {
         throw new AppError_1.default("Tenant ID not found in request", 400);
     }
-    const { count } = yield (0, BatchEnrichContactsService_1.default)(tenantId);
+    const { count } = await (0, BatchEnrichContactsService_1.default)(tenantId);
     return res.status(200).json({ message: `Enrichment scheduled for ${count} contacts.` });
-});
+};
 exports.batchEnrich = batchEnrich;
 /**
  * Import contacts from CSV file
@@ -226,7 +217,7 @@ exports.batchEnrich = batchEnrich;
  * - file: CSV file with columns: name, number, email, walletEmail
  * - delimiter: Optional, defaults to ";" (semicolon)
  */
-const importCsv = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const importCsv = async (req, res) => {
     const { tenantId } = req.user;
     if (!tenantId) {
         throw new AppError_1.default("Tenant ID not found in request", 400);
@@ -239,7 +230,7 @@ const importCsv = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     // Get delimiter from body (default to semicolon for Brazilian CSVs)
     const delimiter = req.body.delimiter || ";";
     try {
-        const result = yield ImportContactsService_1.default.importFromBuffer(file.buffer, {
+        const result = await ImportContactsService_1.default.importFromBuffer(file.buffer, {
             tenantId,
             delimiter,
             skipHeader: true,
@@ -250,22 +241,25 @@ const importCsv = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             action: "import",
             result
         });
-        return res.status(200).json(Object.assign({ message: `Import completed: ${result.success} of ${result.total} contacts processed` }, result));
+        return res.status(200).json({
+            message: `Import completed: ${result.success} of ${result.total} contacts processed`,
+            ...result
+        });
     }
     catch (error) {
         console.error("[ContactController.importCsv] Error:", error);
         throw new AppError_1.default(`Import failed: ${error.message}`, 500);
     }
-});
+};
 exports.importCsv = importCsv;
 /**
  * Get sample CSV format for reference
  * GET /contacts/import-csv/sample
  */
-const getSampleCsv = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getSampleCsv = async (req, res) => {
     const sampleCsv = ImportContactsService_1.ImportContactsService.getSampleCsv();
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=contacts_sample.csv");
     return res.status(200).send(sampleCsv);
-});
+};
 exports.getSampleCsv = getSampleCsv;

@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -20,18 +11,18 @@ const Whatsapp_1 = __importDefault(require("../../models/Whatsapp"));
 const logger_1 = require("../../utils/logger");
 const EntityTagService_1 = __importDefault(require("../TagServices/EntityTagService"));
 const CreateOrUpdateContactService_1 = require("./CreateOrUpdateContactService");
-const CreateContactService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ name, number, email = "", walletUserId, extraInfo = [], tenantId, waitEnrichment = false, // Default false to maintain backward compat unless requested
-tags }) {
+const CreateContactService = async ({ name, number, email = "", walletUserId, extraInfo = [], tenantId, waitEnrichment = false, // Default false to maintain backward compat unless requested
+tags }) => {
     if (!tenantId) {
         throw new AppError_1.default("Tenant ID is required for creating a contact.", 403);
     }
-    const numberExists = yield Contact_1.default.findOne({
+    const numberExists = await Contact_1.default.findOne({
         where: { number, tenantId }
     });
     if (numberExists) {
         throw new AppError_1.default("ERR_DUPLICATED_CONTACT");
     }
-    const contact = yield Contact_1.default.create({
+    const contact = await Contact_1.default.create({
         name,
         number,
         email,
@@ -42,7 +33,7 @@ tags }) {
         include: ["extraInfo"]
     });
     if (tags && tags.length > 0) {
-        yield EntityTagService_1.default.BulkApplyTags({
+        await EntityTagService_1.default.BulkApplyTags({
             tagIds: tags,
             entityType: "contact",
             entityId: contact.id,
@@ -50,11 +41,11 @@ tags }) {
         });
     }
     try {
-        const whatsapp = yield Whatsapp_1.default.findOne({
+        const whatsapp = await Whatsapp_1.default.findOne({
             where: { status: "CONNECTED", tenantId }
         });
         if (whatsapp) {
-            yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`, {
+            await RabbitMQService_1.default.publishCommand(RabbitMQService_1.default.generateRoutingKey(tenantId, whatsapp.engineType, whatsapp.id, "contact.sync"), {
                 id: (0, uuid_1.v4)(),
                 timestamp: Date.now(),
                 type: "contact.sync",
@@ -72,10 +63,10 @@ tags }) {
                 // Actually, a newly created contact here ALWAYS likely needs enrichment unless user provided heavy data.
                 // But even if user provided data, we might want to sync with WhatsApp to get real PFP.
                 // We wait if asked.
-                yield (0, CreateOrUpdateContactService_1.waitForContactEnrichment)(contact.id, false, tenantId); // isGroup false for now as this service seems to be for manual scalar contacts?
+                await (0, CreateOrUpdateContactService_1.waitForContactEnrichment)(contact.id, false, tenantId); // isGroup false for now as this service seems to be for manual scalar contacts?
                 // To be safe, manual contacts are usually individuals. If groups are allowed here, we need to check isGroup from body?
                 // Contact model has default isGroup=false.
-                yield contact.reload();
+                await contact.reload();
             }
         }
         else {
@@ -86,5 +77,5 @@ tags }) {
         logger_1.logger.error(`[CreateContactService] Error sending sync command: ${err}`);
     }
     return contact;
-});
+};
 exports.default = CreateContactService;

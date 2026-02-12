@@ -93,7 +93,7 @@ const UpdateContactService = async ({
 
     if (whatsapp) {
       await RabbitMQService.publishCommand(
-        `wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`,
+        RabbitMQService.generateRoutingKey(tenantId, whatsapp.engineType, whatsapp.id, "contact.sync"),
         {
           id: uuidv4(),
           timestamp: Date.now(),

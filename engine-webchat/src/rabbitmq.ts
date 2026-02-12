@@ -54,6 +54,11 @@ export class RabbitMQ {
         );
     }
 
+    public generateRoutingKey(tenantId: string | number, sessionId: string | number, type: string): string {
+        if (!tenantId) throw new Error("tenantId is mandatory for routing keys");
+        return `webchat.tenant.${tenantId}.${sessionId}.${type}`;
+    }
+
     async consumeCommands(handler: (msg: Envelope) => Promise<void>): Promise<void> {
         this.handler = handler;
         if (this.channel) {
@@ -68,7 +73,8 @@ export class RabbitMQ {
         const q = await this.channel.assertQueue("webchat_worker_commands", { durable: true });
 
         // Escuta todos os comandos do webchat
-        await this.channel.bindQueue(q.queue, "webchat.commands", "webchat.#");
+        // Pattern: webchat.tenant.<tenantId>.<webchatId>.<action>
+        await this.channel.bindQueue(q.queue, "webchat.commands", "webchat.tenant.#");
 
         this.channel.consume(q.queue, async (msg: ConsumeMessage | null) => {
             if (msg) {

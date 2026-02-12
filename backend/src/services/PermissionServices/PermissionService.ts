@@ -33,8 +33,8 @@ class PermissionService {
                 {
                     model: Role,
                     through: {
-                        where: { tenantId }
-                    },
+                        attributes: []
+                    } as any,
                     include: [{
                         model: Permission,
                         as: "permissions"
@@ -43,7 +43,14 @@ class PermissionService {
             ]
         });
 
+        // Filter roles by tenant manually if needed, or rely on RLS
+        // But with NOBYPASSRLS and app.current_tenant set in beforeFind, 
+        // the query above will naturally ONLY return Roles belonging to the tenant.
+
         if (user) {
+            // [RLS ACTIVE] The NOBYPASSRLS + app.current_tenant hook ensures 
+            // this query ONLY sees roles that actually belong to the current tenant.
+
             // Get permissions from Roles
             const isAdmin = (user.roles?.some(r => r.name === "Admin")) || user.email === "admin@admin.com";
 

@@ -108,7 +108,7 @@ const ResendWelcomeEmailService = async (
         payload
     };
 
-    await RabbitMQService.publishCommand("smtp.send", envelope);
+    await RabbitMQService.publishCommand(`smtp.tenant.${envelope.tenantId}.send`, envelope);
 };
 
 export default ResendWelcomeEmailService;

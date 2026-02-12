@@ -45,9 +45,12 @@ const ListTicketsService = async ({
   tenantId,
   profile
 }: Request): Promise<Response> => {
+  const ctx = require("../../libs/context").default.getStore();
+  const effectiveTenantId = tenantId || ctx?.tenantId;
+
   let whereCondition: Filterable["where"] = {
     [Op.or]: [{ userId }, { status: "pending" }],
-    tenantId
+    tenantId: effectiveTenantId
   };
 
   // --- Strict Queue Filtering Fix ---
@@ -121,7 +124,8 @@ const ListTicketsService = async ({
       where: {
         id: {
           [Op.in]: tags
-        }
+        },
+        tenantId: effectiveTenantId
       }
     });
     // Remove o include duplicado de tags (o default required: false) se houver filtro
@@ -135,14 +139,15 @@ const ListTicketsService = async ({
     if (!isAdmin) {
       whereCondition.queueId = { [Op.or]: [userQueueIds.length > 0 ? userQueueIds : [-1], null] };
     } else {
-      whereCondition = { queueId: { [Op.or]: [queueIds, null] } };
+      whereCondition = { queueId: { [Op.or]: [queueIds, null] }, tenantId: effectiveTenantId };
     }
   }
 
   if (status) {
     whereCondition = {
       ...whereCondition,
-      status
+      status,
+      tenantId: effectiveTenantId
     };
   }
 
@@ -203,7 +208,8 @@ const ListTicketsService = async ({
     whereCondition = {
       [Op.or]: [{ userId }, { status: "pending" }],
       queueId: { [Op.or]: [userQueueIds, null] },
-      unreadMessages: { [Op.gt]: 0 }
+      unreadMessages: { [Op.gt]: 0 },
+      tenantId: effectiveTenantId
     };
   }
 
@@ -212,7 +218,8 @@ const ListTicketsService = async ({
       whereCondition = {
         ...whereCondition,
         isGroup: false,
-        "$contact.isGroup$": false
+        "$contact.isGroup$": false,
+        tenantId: effectiveTenantId
       };
     } else {
       // Para grupos, ignorar filtros de status/userId e buscar todos os tickets de grupo
@@ -224,7 +231,8 @@ const ListTicketsService = async ({
         [Op.or]: [
           { isGroup: true },
           { "$contact.isGroup$": true }
-        ]
+        ],
+        tenantId: effectiveTenantId
       };
     }
   }

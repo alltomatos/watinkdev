@@ -20,11 +20,14 @@ const ListUsersService = async ({
   pageNumber = "1",
   tenantId
 }: Request): Promise<Response> => {
+  const ctx = require("../../libs/context").default.getStore();
+  const effectiveTenantId = tenantId || ctx?.tenantId;
+
   let whereCondition: any = {};
-  if (tenantId !== undefined) {
-    whereCondition.tenantId = tenantId;
+  if (effectiveTenantId !== undefined) {
+    whereCondition.tenantId = effectiveTenantId;
   }
-  console.log("DEBUG: ListUsersService tenantId:", tenantId, "whereCondition:", whereCondition);
+  console.log("DEBUG: ListUsersService tenantId:", effectiveTenantId, "whereCondition:", whereCondition);
 
   if (searchParam) {
     whereCondition = {

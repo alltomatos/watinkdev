@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -16,40 +7,28 @@ const uuid_1 = require("uuid");
 const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const logger_1 = require("../../utils/logger");
 class FlowQueueService {
-    constructor() {
-        this.QUEUE_NAME = "flow.execution.process";
-    }
-    add(type, payload, tenantId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                // Ensure queue exists (idempotent)
-                // Note: RabbitMQService abstraction might not expose assertQueue directly publicly
-                // Ideally we publish to an exchange, but for simplicity/direct worker pattern we can publish to queue via routing key default
-                const envelope = {
-                    id: (0, uuid_1.v4)(),
-                    timestamp: Date.now(),
-                    type,
-                    tenantId,
-                    payload
-                };
-                // We reuse the existing RabbitMQService.publishCommand logic or creates a new specific one
-                // Since RabbitMQService is tailored for "wbot.*", we might need to adapt it or use a generic publish
-                // Looking at RabbitMQService implementation (implied), it likely publishes to 'api.commands.process' exchange.
-                // We want a dedicated queue. Let's assume we can use a generic publish method if available, or just use the existing one with a special routing key.
-                // Let's use a distinct routing key pattern for flows
-                const routingKey = `flow.execution.${type}`;
-                // We will use the existing publishCommand which sends to 'api.commands.process' exchange usually.
-                // But we want a dedicated queue. 
-                // Strategy: Publish to the same exchange but with a flow routing key, 
-                // and bind a NEW queue to this routing key in the Worker setup.
-                yield RabbitMQService_1.default.publishCommand(routingKey, envelope);
-                logger_1.logger.info(`Flow event published: ${routingKey} for ticket ${payload.ticketId}`);
+    async add(type, payload, tenantId) {
+        try {
+            const envelope = {
+                id: (0, uuid_1.v4)(),
+                timestamp: Date.now(),
+                type,
+                tenantId,
+                payload
+            };
+            const routingKey = `flow.tenant.${tenantId}.execution.${type}`;
+            const published = await RabbitMQService_1.default.publishCommand(routingKey, envelope);
+            if (!published) {
+                logger_1.logger.warn(`Flow event NOT published (channel unavailable): ${routingKey}`);
+                return false;
             }
-            catch (err) {
-                logger_1.logger.error(`Error publishing flow event: ${err}`);
-                throw err;
-            }
-        });
+            logger_1.logger.info(`Flow event published: ${routingKey}`);
+            return true;
+        }
+        catch (err) {
+            logger_1.logger.error(`Error publishing flow event: ${err}`);
+            return false;
+        }
     }
 }
 exports.default = new FlowQueueService();

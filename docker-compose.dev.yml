@@ -1,0 +1,40 @@
+version: '3.7'
+
+services:
+  watink_postgres:
+    image: watink/postgres-postgis-pgvector:16-optimized
+    environment:
+      - POSTGRES_DB=watink
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data_dev:/var/lib/postgresql/data
+    networks:
+      - watink_dev_network
+
+  redis:
+    image: redis:alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - watink_dev_network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15673:15672" # Admin interface on 15673 to avoid conflicts if needed, or stick to standard
+    networks:
+      - watink_dev_network
+
+networks:
+  watink_dev_network:
+    driver: bridge
+
+volumes:
+  db_data_dev:
+  redis_data_dev:

@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -18,11 +9,11 @@ const socket_1 = require("../libs/socket");
 const Message_1 = __importDefault(require("../models/Message"));
 const Whatsapp_1 = __importDefault(require("../models/Whatsapp"));
 const logger_1 = require("../utils/logger");
-const SetTicketMessagesAsRead = (ticket) => __awaiter(void 0, void 0, void 0, function* () {
+const SetTicketMessagesAsRead = async (ticket) => {
     var _a;
     try {
         // 1. Find unread messages (received only, since we don't mark our own messages as read for ourselves)
-        const unreadMessages = yield Message_1.default.findAll({
+        const unreadMessages = await Message_1.default.findAll({
             where: {
                 ticketId: ticket.id,
                 read: false,
@@ -33,7 +24,7 @@ const SetTicketMessagesAsRead = (ticket) => __awaiter(void 0, void 0, void 0, fu
         const unreadMessageIds = unreadMessages.map(m => m.id);
         // 2. Update messages to read = true in DB
         if (unreadMessageIds.length > 0) {
-            yield Message_1.default.update({ read: true }, {
+            await Message_1.default.update({ read: true }, {
                 where: {
                     ticketId: ticket.id,
                     read: false
@@ -54,13 +45,13 @@ const SetTicketMessagesAsRead = (ticket) => __awaiter(void 0, void 0, void 0, fu
             };
             let engineType = (_a = ticket.whatsapp) === null || _a === void 0 ? void 0 : _a.engineType;
             if (!engineType) {
-                const whatsapp = yield Whatsapp_1.default.findByPk(ticket.whatsappId);
+                const whatsapp = await Whatsapp_1.default.findByPk(ticket.whatsappId);
                 engineType = whatsapp === null || whatsapp === void 0 ? void 0 : whatsapp.engineType;
             }
-            yield RabbitMQService_1.default.publishCommand(`wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType || "whaileys"}.message.markAsRead`, command);
+            await RabbitMQService_1.default.publishCommand(`wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType || "whaileys"}.message.markAsRead`, command);
         }
         // 4. Update ticket unread count
-        yield ticket.update({ unreadMessages: 0 });
+        await ticket.update({ unreadMessages: 0 });
     }
     catch (err) {
         logger_1.logger.warn(`Could not mark messages as read.Err: ${err} `);
@@ -70,5 +61,5 @@ const SetTicketMessagesAsRead = (ticket) => __awaiter(void 0, void 0, void 0, fu
         action: "updateUnread",
         ticketId: ticket.id
     });
-});
+};
 exports.default = SetTicketMessagesAsRead;

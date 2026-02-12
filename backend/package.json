@@ -1,13 +1,13 @@
 {
   "name": "backend",
-  "version": "1.3.487",
+  "version": "1.3.488",
   "description": "",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
     "start": "node dist/server.js",
-    "dev": "ts-node-dev --respawn --transpile-only --ignore node_modules src/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only --ignore node_modules src/server.ts",
     "pretest": "NODE_ENV=test sequelize db:migrate && NODE_ENV=test sequelize db:seed:all",
     "test": "NODE_ENV=test jest",
     "posttest": "NODE_ENV=test sequelize db:migrate:undo:all",

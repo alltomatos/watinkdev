@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 
 import AppError from "../errors/AppError";
 import ListSettingByValueService from "../services/SettingServices/ListSettingByValueService";
+import context from "../libs/context";
 
 const isAuthApi = async (
   req: Request,
@@ -25,6 +26,22 @@ const isAuthApi = async (
     if (getToken.value !== token) {
       throw new AppError("ERR_SESSION_EXPIRED", 401);
     }
+
+    const setting = await require("../models/Setting").default.findOne({ where: { value: token } });
+
+    if (!setting) {
+        throw new AppError("ERR_SESSION_EXPIRED", 401);
+    }
+
+    req.user = {
+      id: "API",
+      tenantId: setting.tenantId,
+      profile: "admin"
+    };
+
+    return context.run({ tenantId: setting.tenantId.toString(), userId: "API" }, () => {
+      return next();
+    });
   } catch (err) {
     console.log(err);
     throw new AppError(

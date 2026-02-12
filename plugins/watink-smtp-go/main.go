@@ -51,7 +51,7 @@ func main() {
 
 	queueName := "smtp.email.queue"
 	exchangeName := "wbot.commands"
-	routingKey := "smtp.send"
+	routingKey := "smtp.tenant.#"
 
 	log.Printf("Connecting to RabbitMQ at %s", rabbitURL)
 	var conn *amqp.Connection

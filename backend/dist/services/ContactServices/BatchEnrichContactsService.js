@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -18,7 +9,7 @@ const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const sequelize_1 = require("sequelize");
 const logger_1 = require("../../utils/logger");
 const uuid_1 = require("uuid");
-const BatchEnrichContactsService = (tenantId) => __awaiter(void 0, void 0, void 0, function* () {
+const BatchEnrichContactsService = async (tenantId) => {
     let count = 0;
     try {
         // 1. Find candidates:
@@ -28,7 +19,7 @@ const BatchEnrichContactsService = (tenantId) => __awaiter(void 0, void 0, void 
         //   b) OR Number equals LID (meaning it was created via LID-only flow and hasn't been resolved to a number yet - rare in this codebase but possible)
         //   c) OR RemoteJid contains '@lid' (not used in this codebase typically, but safe to ignore)
         // We stick to: LID is NULL and Number is NOT NULL.
-        const contacts = yield Contact_1.default.findAll({
+        const contacts = await Contact_1.default.findAll({
             where: {
                 tenantId,
                 isGroup: false,
@@ -42,7 +33,7 @@ const BatchEnrichContactsService = (tenantId) => __awaiter(void 0, void 0, void 
             limit: 1000 // Batch limit to avoid overload
         });
         logger_1.logger.info(`[BatchEnrich] Found ${contacts.length} candidates for enrichment for tenant ${tenantId}.`);
-        const whatsapp = yield Whatsapp_1.default.findOne({ where: { tenantId, status: "CONNECTED" } });
+        const whatsapp = await Whatsapp_1.default.findOne({ where: { tenantId, status: "CONNECTED" } });
         if (!whatsapp) {
             logger_1.logger.warn(`[BatchEnrich] No connected WhatsApp session found for tenant ${tenantId}. Aborting.`);
             return { count: 0 };
@@ -51,7 +42,7 @@ const BatchEnrichContactsService = (tenantId) => __awaiter(void 0, void 0, void 
             if (!contact.number)
                 continue;
             try {
-                yield RabbitMQService_1.default.publishCommand(`wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`, {
+                await RabbitMQService_1.default.publishCommand(RabbitMQService_1.default.generateRoutingKey(tenantId, whatsapp.engineType, whatsapp.id, "contact.sync"), {
                     id: (0, uuid_1.v4)(),
                     timestamp: Date.now(),
                     type: "contact.sync",
@@ -78,5 +69,5 @@ const BatchEnrichContactsService = (tenantId) => __awaiter(void 0, void 0, void 
         logger_1.logger.error(`[BatchEnrich] Error: ${err}`);
         throw new Error("ERR_BATCH_ENRICH_CONTACTS");
     }
-});
+};
 exports.default = BatchEnrichContactsService;

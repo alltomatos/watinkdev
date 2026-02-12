@@ -21,7 +21,7 @@ class FlowQueueService {
         payload
       };
 
-      const routingKey = `flow.execution.${type}`;
+      const routingKey = `flow.tenant.${tenantId}.execution.${type}`;
       const published = await RabbitMQService.publishCommand(routingKey, envelope);
 
       if (!published) {

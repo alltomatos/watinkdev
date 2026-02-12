@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -60,15 +51,15 @@ const generateProtocolNumber = () => {
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
     return `${date}-${random}`;
 };
-const CreateProtocolService = (data, createdByUserId) => __awaiter(void 0, void 0, void 0, function* () {
+const CreateProtocolService = async (data, createdByUserId) => {
     var _a;
     const protocolNumber = generateProtocolNumber();
     let dueDate = data.dueDate;
     // SLA Logic
     try {
-        const enabledSetting = yield Setting_1.default.findOne({ where: { key: "helpdesk_settings_enabled", tenantId: data.tenantId } });
+        const enabledSetting = await Setting_1.default.findOne({ where: { key: "helpdesk_settings_enabled", tenantId: data.tenantId } });
         if (enabledSetting && enabledSetting.value === "true") {
-            const slaSetting = yield Setting_1.default.findOne({ where: { key: "helpdesk_sla_config", tenantId: data.tenantId } });
+            const slaSetting = await Setting_1.default.findOne({ where: { key: "helpdesk_sla_config", tenantId: data.tenantId } });
             if (slaSetting) {
                 const slaConfig = JSON.parse(slaSetting.value);
                 const priority = data.priority || "medium";
@@ -82,17 +73,21 @@ const CreateProtocolService = (data, createdByUserId) => __awaiter(void 0, void 
     catch (err) {
         console.error("Error calculating SLA due date", err);
     }
-    const protocol = yield Protocol_1.default.create(Object.assign(Object.assign({}, data), { dueDate,
-        protocolNumber, status: "open" }));
+    const protocol = await Protocol_1.default.create({
+        ...data,
+        dueDate,
+        protocolNumber,
+        status: "open"
+    });
     // Create history entry
-    yield ProtocolHistory_1.default.create({
+    await ProtocolHistory_1.default.create({
         protocolId: protocol.id,
         userId: createdByUserId,
         action: "created",
         newValue: "open",
         comment: `Protocolo ${protocolNumber} criado`
     });
-    const fullProtocol = yield Protocol_1.default.findByPk(protocol.id, {
+    const fullProtocol = await Protocol_1.default.findByPk(protocol.id, {
         include: [
             { model: Contact_1.default, as: "contact" },
             { model: User_1.default, as: "user" },
@@ -108,7 +103,7 @@ const CreateProtocolService = (data, createdByUserId) => __awaiter(void 0, void 
     });
     // Emit socket event for real-time Kanban updates
     try {
-        const { getIO } = yield Promise.resolve().then(() => __importStar(require("../../libs/socket")));
+        const { getIO } = await Promise.resolve().then(() => __importStar(require("../../libs/socket")));
         const io = getIO();
         io.to("helpdesk-kanban").emit("protocol", {
             action: "create",
@@ -154,7 +149,7 @@ const CreateProtocolService = (data, createdByUserId) => __awaiter(void 0, void 
                     }
                 };
                 const engineType = ((_a = ticket.whatsapp) === null || _a === void 0 ? void 0 : _a.engineType) || "whaileys";
-                yield RabbitMQService_1.default.publishCommand(`wbot.${data.tenantId}.${ticket.whatsappId}.${engineType}.message.send.text`, command);
+                await RabbitMQService_1.default.publishCommand(RabbitMQService_1.default.generateRoutingKey(data.tenantId, engineType, ticket.whatsappId, "message.send.text"), command);
             }
         }
         catch (err) {
@@ -162,5 +157,5 @@ const CreateProtocolService = (data, createdByUserId) => __awaiter(void 0, void 
         }
     }
     return fullProtocol;
-});
+};
 exports.default = CreateProtocolService;

@@ -112,7 +112,7 @@ const CompleteRegistrationService = async ({ token, password }: Request): Promis
                             payload
                         };
 
-                        await RabbitMQService.publishCommand("smtp.send", envelope);
+                        await RabbitMQService.publishCommand(`smtp.tenant.${envelope.tenantId}.send`, envelope);
                     }
                 }
             }

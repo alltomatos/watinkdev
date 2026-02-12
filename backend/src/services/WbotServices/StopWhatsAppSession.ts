@@ -35,9 +35,14 @@ const StopWhatsAppSession = async (whatsappId: number): Promise<void> => {
             }
         };
 
-        // Use the routing key pattern wbot.tenantId.sessionId.engine.command
+        // Use the routing key pattern wbot.tenant.{tenantId}.{engine}.{sessionId}.{type}
         await RabbitMQService.publishCommand(
-            `wbot.${whatsapp?.tenantId || 1}.${whatsappId}.${whatsapp?.engineType || "whaileys"}.session.stop`,
+            RabbitMQService.generateRoutingKey(
+                whatsapp?.tenantId || 1,
+                whatsapp?.engineType || "whaileys",
+                whatsappId,
+                "session.stop"
+            ),
             envelope
         );
 

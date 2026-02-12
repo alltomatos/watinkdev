@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -55,7 +46,7 @@ const PluginInstallation_1 = __importDefault(require("../../models/PluginInstall
 const Plugin_1 = __importDefault(require("../../models/Plugin"));
 const sequelize_1 = require("sequelize");
 const SendVerificationEmailService_1 = __importDefault(require("./SendVerificationEmailService"));
-const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ email, password, name, queueIds = [], whatsappId, groupIds = [], groupId, tenantId, roleIds = [] }) {
+const CreateUserService = async ({ email, password, name, queueIds = [], whatsappId, groupIds = [], groupId, tenantId, roleIds = [] }) => {
     let finalGroupIds = [...groupIds];
     if (groupId && !finalGroupIds.includes(groupId)) {
         finalGroupIds.push(groupId);
@@ -65,18 +56,18 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
         email: Yup.string()
             .email()
             .required()
-            .test("Check-email", "An user with this email already exists.", (value) => __awaiter(void 0, void 0, void 0, function* () {
+            .test("Check-email", "An user with this email already exists.", async (value) => {
             if (!value)
                 return false;
-            const emailExists = yield User_1.default.findOne({
+            const emailExists = await User_1.default.findOne({
                 where: { email: value }
             });
             return !emailExists;
-        })),
+        }),
         password: Yup.string().required().min(5)
     });
     try {
-        yield schema.validate({ email, password, name });
+        await schema.validate({ email, password, name });
     }
     catch (err) {
         throw new AppError_1.default(err.message);
@@ -87,7 +78,7 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
      */
     let emailVerified = false;
     if (tenantId) {
-        const smtpPlugin = yield Plugin_1.default.findOne({
+        const smtpPlugin = await Plugin_1.default.findOne({
             where: {
                 slug: {
                     [sequelize_1.Op.like]: "%smtp%"
@@ -95,7 +86,7 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
             }
         });
         if (smtpPlugin) {
-            const pluginInstallation = yield PluginInstallation_1.default.findOne({
+            const pluginInstallation = await PluginInstallation_1.default.findOne({
                 where: {
                     tenantId,
                     pluginId: smtpPlugin.id,
@@ -114,15 +105,15 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
         emailVerified = true;
     }
     if (process.env.TENANTS === "true" && tenantId) {
-        const tenant = yield Tenant_1.default.findOne({ where: { id: tenantId } });
+        const tenant = await Tenant_1.default.findOne({ where: { id: tenantId } });
         if (tenant) {
-            const userCount = yield User_1.default.count({ where: { tenantId } });
+            const userCount = await User_1.default.count({ where: { tenantId } });
             if (userCount >= tenant.maxUsers) {
                 throw new AppError_1.default("ERR_MAX_USERS_REACHED", 403);
             }
         }
     }
-    const user = yield User_1.default.create({
+    const user = await User_1.default.create({
         email,
         password,
         name,
@@ -130,23 +121,23 @@ const CreateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ e
         tenantId,
         emailVerified
     }, { include: ["queues", "whatsapp"] });
-    yield user.$set("queues", queueIds);
-    yield user.$set("groups", finalGroupIds, { through: { tenantId } });
+    await user.$set("queues", queueIds);
+    await user.$set("groups", finalGroupIds, { through: { tenantId } });
     if (roleIds && roleIds.length > 0) {
-        yield user.$set("roles", roleIds, { through: { tenantId } });
+        await user.$set("roles", roleIds, { through: { tenantId } });
     }
     // Send Verification Email (Async)
     if (tenantId && !emailVerified) {
         const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
         try {
-            yield (0, SendVerificationEmailService_1.default)(email, frontendUrl);
+            await (0, SendVerificationEmailService_1.default)(email, frontendUrl);
         }
         catch (err) {
             console.error("Failed to send verification email", err);
         }
     }
     // await user.reload();
-    const createdUser = yield (0, ShowUserService_1.default)(user.id);
+    const createdUser = await (0, ShowUserService_1.default)(user.id);
     return (0, SerializeUser_1.SerializeUser)(createdUser);
-});
+};
 exports.default = CreateUserService;

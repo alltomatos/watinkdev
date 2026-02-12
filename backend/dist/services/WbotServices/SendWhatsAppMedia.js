@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -23,8 +14,8 @@ const RabbitMQService_1 = __importDefault(require("../RabbitMQService"));
 const Message_1 = __importDefault(require("../../models/Message"));
 const socket_1 = require("../../libs/socket");
 const GenerateWAMessageId_1 = __importDefault(require("../../helpers/GenerateWAMessageId"));
-const SendWhatsAppMedia = (_a) => __awaiter(void 0, [_a], void 0, function* ({ media, ticket, body, mentionedIds }) {
-    var _b;
+const SendWhatsAppMedia = async ({ media, ticket, body, mentionedIds }) => {
+    var _a;
     try {
         const hasBody = body
             ? (0, Mustache_1.default)(body, ticket.contact)
@@ -54,7 +45,7 @@ const SendWhatsAppMedia = (_a) => __awaiter(void 0, [_a], void 0, function* ({ m
             mediaUrl: `${ticket.tenantId}/${media.filename}`,
             tenantId: ticket.tenantId
         };
-        const message = yield Message_1.default.create(messageData);
+        const message = await Message_1.default.create(messageData);
         const io = (0, socket_1.getIO)();
         io.to(message.ticketId.toString()).emit("appMessage", {
             action: "create",
@@ -82,22 +73,22 @@ const SendWhatsAppMedia = (_a) => __awaiter(void 0, [_a], void 0, function* ({ m
             }
         };
         // Determine Routing Key based on Engine Type
-        let engineType = (_b = ticket.whatsapp) === null || _b === void 0 ? void 0 : _b.engineType;
+        let engineType = (_a = ticket.whatsapp) === null || _a === void 0 ? void 0 : _a.engineType;
         if (!engineType) {
-            const whatsapp = yield Whatsapp_1.default.findByPk(ticket.whatsappId);
+            const whatsapp = await Whatsapp_1.default.findByPk(ticket.whatsappId);
             engineType = whatsapp === null || whatsapp === void 0 ? void 0 : whatsapp.engineType;
         }
         if (!engineType) {
             engineType = "whaileys";
         }
-        const routingKey = `wbot.${ticket.tenantId}.${ticket.whatsappId}.${engineType}.message.send.media`;
-        yield RabbitMQService_1.default.publishCommand(routingKey, command);
-        yield ticket.update({ lastMessage: body || media.originalname });
+        const routingKey = RabbitMQService_1.default.generateRoutingKey(ticket.tenantId, engineType, ticket.whatsappId, "message.send.media");
+        await RabbitMQService_1.default.publishCommand(routingKey, command);
+        await ticket.update({ lastMessage: body || media.originalname });
         return message;
     }
     catch (err) {
         console.log(err);
         throw new AppError_1.default("ERR_SENDING_WAPP_MSG");
     }
-});
+};
 exports.default = SendWhatsAppMedia;

@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -55,11 +46,11 @@ const PluginInstallation_1 = __importDefault(require("../models/PluginInstallati
 const pluginRoutes = (0, express_1.Router)();
 const express_2 = __importDefault(require("express"));
 pluginRoutes.post("/plugins/papi/test", express_2.default.json(), isAuth_1.default, WhatsAppController.testPapiConnection);
-pluginRoutes.get("/plugins/api/v1/plugins/installed", isAuth_1.default, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+pluginRoutes.get("/plugins/api/v1/plugins/installed", isAuth_1.default, async (req, res) => {
     try {
         const tenantId = req.user.tenantId;
         console.log(`[PluginRoutes] Fetching installed plugins for tenant: ${tenantId}`);
-        const installations = yield PluginInstallation_1.default.findAll({
+        const installations = await PluginInstallation_1.default.findAll({
             where: {
                 tenantId,
                 status: "active"
@@ -86,10 +77,10 @@ pluginRoutes.get("/plugins/api/v1/plugins/installed", isAuth_1.default, (req, re
         console.error("Failed to fetch installed plugins locally:", err);
         return res.status(500).json({ error: "Failed to fetch plugins" });
     }
-}));
+});
 pluginRoutes.use("/plugins", isAuth_1.default, (0, checkPermission_1.default)("marketplace:read"), (0, http_proxy_middleware_1.createProxyMiddleware)({
     // The target is the internal docker service name of the go plugin manager
-    target: process.env.PLUGIN_MANAGER_URL || "http://plugin-manager:3005",
+    target: process.env.PLUGIN_MANAGER_URL || "http://plugin-manager:8081",
     changeOrigin: true,
     pathRewrite: {
         "^/plugins": "", // remove /plugins prefix when forwarding

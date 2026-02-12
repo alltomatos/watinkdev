@@ -7,8 +7,11 @@ import Whatsapp from "../../models/Whatsapp";
 import Tag from "../../models/Tag";
 
 const ShowTicketService = async (id: string | number, tenantId?: string | number): Promise<Ticket> => {
+  const ctx = require("../../libs/context").default.getStore();
+  const effectiveTenantId = tenantId || ctx?.tenantId;
+
   const where: any = { id };
-  if (tenantId) where.tenantId = tenantId;
+  if (effectiveTenantId) where.tenantId = effectiveTenantId;
 
   const ticket = await Ticket.findOne({
     where,

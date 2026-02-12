@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -50,54 +41,54 @@ const AppError_1 = __importDefault(require("../../errors/AppError"));
 const Queue_1 = __importStar(require("../../models/Queue"));
 // Valid distribution strategies for validation
 const validStrategies = Object.values(Queue_1.DISTRIBUTION_STRATEGIES);
-const CreateQueueService = (queueData) => __awaiter(void 0, void 0, void 0, function* () {
+const CreateQueueService = async (queueData) => {
     const { color, name, distributionStrategy, prioritizeWallet, whatsappIds } = queueData;
     const queueSchema = Yup.object().shape({
         name: Yup.string()
             .min(2, "ERR_QUEUE_INVALID_NAME")
             .required("ERR_QUEUE_INVALID_NAME")
-            .test("Check-unique-name", "ERR_QUEUE_NAME_ALREADY_EXISTS", (value) => __awaiter(void 0, void 0, void 0, function* () {
+            .test("Check-unique-name", "ERR_QUEUE_NAME_ALREADY_EXISTS", async (value) => {
             if (value) {
-                const queueWithSameName = yield Queue_1.default.findOne({
+                const queueWithSameName = await Queue_1.default.findOne({
                     where: { name: value }
                 });
                 return !queueWithSameName;
             }
             return false;
-        })),
+        }),
         color: Yup.string()
             .required("ERR_QUEUE_INVALID_COLOR")
-            .test("Check-color", "ERR_QUEUE_INVALID_COLOR", (value) => __awaiter(void 0, void 0, void 0, function* () {
+            .test("Check-color", "ERR_QUEUE_INVALID_COLOR", async (value) => {
             if (value) {
                 const colorTestRegex = /^#[0-9a-f]{3,6}$/i;
                 return colorTestRegex.test(value);
             }
             return false;
-        }))
-            .test("Check-color-exists", "ERR_QUEUE_COLOR_ALREADY_EXISTS", (value) => __awaiter(void 0, void 0, void 0, function* () {
+        })
+            .test("Check-color-exists", "ERR_QUEUE_COLOR_ALREADY_EXISTS", async (value) => {
             if (value) {
-                const queueWithSameColor = yield Queue_1.default.findOne({
+                const queueWithSameColor = await Queue_1.default.findOne({
                     where: { color: value }
                 });
                 return !queueWithSameColor;
             }
             return false;
-        })),
+        }),
         distributionStrategy: Yup.string()
             .oneOf(validStrategies, "ERR_QUEUE_INVALID_DISTRIBUTION_STRATEGY")
             .default("MANUAL"),
         prioritizeWallet: Yup.boolean().default(false)
     });
     try {
-        yield queueSchema.validate({ color, name, distributionStrategy, prioritizeWallet });
+        await queueSchema.validate({ color, name, distributionStrategy, prioritizeWallet });
     }
     catch (err) {
         throw new AppError_1.default(err.message);
     }
-    const queue = yield Queue_1.default.create(queueData);
+    const queue = await Queue_1.default.create(queueData);
     if (whatsappIds) {
-        yield queue.$set("whatsapps", whatsappIds);
+        await queue.$set("whatsapps", whatsappIds);
     }
     return queue;
-});
+};
 exports.default = CreateQueueService;

@@ -5,7 +5,13 @@ import { logger } from "../utils/logger";
 const GetDefaultWhatsAppByUser = async (
   userId: number
 ): Promise<Whatsapp | null> => {
-  const user = await User.findByPk(userId, { include: ["whatsapp"] });
+  const ctx = require("./context").default.getStore();
+  const effectiveTenantId = ctx?.tenantId;
+
+  const where: any = { id: userId };
+  if (effectiveTenantId) where.tenantId = effectiveTenantId;
+
+  const user = await User.findOne({ where, include: ["whatsapp"] });
   if (user === null) {
     return null;
   }

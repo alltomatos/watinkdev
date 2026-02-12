@@ -3,9 +3,12 @@ import Whatsapp from "../../models/Whatsapp";
 import Tag from "../../models/Tag";
 
 const ListWhatsAppsService = async (tenantId?: number | string): Promise<Whatsapp[]> => {
+  const ctx = require("../../libs/context").default.getStore();
+  const effectiveTenantId = tenantId || ctx?.tenantId;
+
   const whereCondition: any = {};
-  if (tenantId) {
-    whereCondition.tenantId = tenantId;
+  if (effectiveTenantId) {
+    whereCondition.tenantId = effectiveTenantId;
   }
 
   const whatsapps = await Whatsapp.findAll({

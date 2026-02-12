@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -15,8 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const AppError_1 = __importDefault(require("../../errors/AppError"));
 const Deal_1 = __importDefault(require("../../models/Deal"));
 const EntityTagService_1 = __importDefault(require("../TagServices/EntityTagService"));
-const UpdateDealService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ dealData, dealId, tenantId }) {
-    const deal = yield Deal_1.default.findOne({
+const UpdateDealService = async ({ dealData, dealId, tenantId }) => {
+    const deal = await Deal_1.default.findOne({
         where: { id: dealId, tenantId },
         include: ["contact", "ticket"]
     });
@@ -24,7 +15,7 @@ const UpdateDealService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ d
         throw new AppError_1.default("ERR_NO_DEAL_FOUND", 404);
     }
     const { title, value, priority, contactId, ticketId, pipelineId, stageId } = dealData;
-    yield deal.update({
+    await deal.update({
         title,
         value,
         priority,
@@ -34,16 +25,16 @@ const UpdateDealService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ d
         stageId
     });
     if (dealData.tags) {
-        yield EntityTagService_1.default.SyncEntityTags({
+        await EntityTagService_1.default.SyncEntityTags({
             tagIds: dealData.tags,
             entityType: 'deal',
             entityId: deal.id,
             tenantId: tenantId
         });
     }
-    yield deal.reload({
+    await deal.reload({
         include: ["contact", "ticket", "tags"]
     });
     return deal;
-});
+};
 exports.default = UpdateDealService;

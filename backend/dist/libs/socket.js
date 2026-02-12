@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -30,7 +21,7 @@ const initIO = (httpServer) => {
         },
         allowEIO3: true
     });
-    io.on("connection", (socket) => __awaiter(void 0, void 0, void 0, function* () {
+    io.on("connection", async (socket) => {
         var _a, _b;
         logger_1.logger.info("Socket Connection Attempt");
         let { token } = socket.handshake.query;
@@ -66,7 +57,7 @@ const initIO = (httpServer) => {
         const userId = tokenData === null || tokenData === void 0 ? void 0 : tokenData.id;
         // Track user as online in Redis
         if (userId) {
-            yield UserOnlineService_1.default.setUserOnline(userId, socket.id);
+            await UserOnlineService_1.default.setUserOnline(userId, socket.id);
             // Store userId in socket data for disconnect handler
             socket.data = socket.data || {};
             socket.data.userId = userId;
@@ -89,20 +80,20 @@ const initIO = (httpServer) => {
             socket.join("helpdesk-kanban");
         });
         // Heartbeat event to refresh online status (optional client-side ping)
-        socket.on("heartbeat", () => __awaiter(void 0, void 0, void 0, function* () {
+        socket.on("heartbeat", async () => {
             if (socket.data.userId) {
-                yield UserOnlineService_1.default.refreshUserOnline(socket.data.userId);
+                await UserOnlineService_1.default.refreshUserOnline(socket.data.userId);
             }
-        }));
-        socket.on("disconnect", () => __awaiter(void 0, void 0, void 0, function* () {
+        });
+        socket.on("disconnect", async () => {
             const disconnectedUserId = socket.data.userId;
             if (disconnectedUserId) {
-                yield UserOnlineService_1.default.setUserOffline(disconnectedUserId, socket.id);
+                await UserOnlineService_1.default.setUserOffline(disconnectedUserId, socket.id);
             }
             logger_1.logger.info(`Client disconnected (userId: ${disconnectedUserId || "unknown"}, socketId: ${socket.id})`);
-        }));
+        });
         return socket;
-    }));
+    });
     return io;
 };
 exports.initIO = initIO;

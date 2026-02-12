@@ -148,7 +148,7 @@ const CreateProtocolService = async (
                 const engineType = ticket.whatsapp?.engineType || "whaileys";
 
                 await RabbitMQService.publishCommand(
-                    `wbot.${data.tenantId}.${ticket.whatsappId}.${engineType}.message.send.text`,
+                    RabbitMQService.generateRoutingKey(data.tenantId, engineType, ticket.whatsappId, "message.send.text"),
                     command
                 );
             }

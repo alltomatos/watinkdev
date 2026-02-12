@@ -45,18 +45,21 @@ const BatchEnrichContactsService = async (
             if (!contact.number) continue;
 
             try {
-                await RabbitMQService.publishCommand(`wbot.${tenantId}.${whatsapp.id}.${whatsapp.engineType}.contact.sync`, {
-                    id: uuidv4(),
-                    timestamp: Date.now(),
-                    type: "contact.sync",
-                    payload: {
-                        contactId: contact.id,
-                        number: contact.number,
-                        lid: undefined, // ensure we ask for it
-                        sessionId: whatsapp.id
-                    },
-                    tenantId
-                });
+                await RabbitMQService.publishCommand(
+                    RabbitMQService.generateRoutingKey(tenantId, whatsapp.engineType, whatsapp.id, "contact.sync"),
+                    {
+                        id: uuidv4(),
+                        timestamp: Date.now(),
+                        type: "contact.sync",
+                        payload: {
+                            contactId: contact.id,
+                            number: contact.number,
+                            lid: undefined, // ensure we ask for it
+                            sessionId: whatsapp.id
+                        },
+                        tenantId
+                    }
+                );
 
                 count++;
                 // Small delay if needed? RabbitMQ handles it, but maybe Engine overload?

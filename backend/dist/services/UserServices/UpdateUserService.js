@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -51,8 +42,8 @@ const SerializeUser_1 = require("../../helpers/SerializeUser");
 const ShowUserService_1 = __importDefault(require("./ShowUserService"));
 const RedisService_1 = require("../../services/RedisService");
 const User_1 = __importDefault(require("../../models/User"));
-const UpdateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ userData, userId, requestUser }) {
-    const user = yield User_1.default.findByPk(userId);
+const UpdateUserService = async ({ userData, userId, requestUser }) => {
+    const user = await User_1.default.findByPk(userId);
     if (!user) {
         throw new AppError_1.default("ERR_NO_USER_FOUND", 404);
     }
@@ -73,12 +64,12 @@ const UpdateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ u
     }
     console.log("UpdateUserService: Processing", { finalGroupIds });
     try {
-        yield schema.validate({ email, password, name });
+        await schema.validate({ email, password, name });
     }
     catch (err) {
         throw new AppError_1.default(err.message);
     }
-    yield user.update({
+    await user.update({
         email,
         password,
         name,
@@ -87,24 +78,24 @@ const UpdateUserService = (_a) => __awaiter(void 0, [_a], void 0, function* ({ u
     });
     try {
         console.log("UpdateUserService: Setting queues...");
-        yield user.$set("queues", queueIds);
+        await user.$set("queues", queueIds);
         console.log("UpdateUserService: Setting groups...", finalGroupIds);
-        yield user.$set("groups", finalGroupIds, { through: { tenantId: requestUser.tenantId } });
+        await user.$set("groups", finalGroupIds, { through: { tenantId: requestUser.tenantId } });
         if (roleIds) {
             console.log("UpdateUserService: Setting roles...", roleIds);
-            yield user.$set("roles", roleIds, { through: { tenantId: requestUser.tenantId } });
+            await user.$set("roles", roleIds, { through: { tenantId: requestUser.tenantId } });
         }
         // Invalidate Permission Cache
         console.log("UpdateUserService: Invalidating cache...");
         const redis = RedisService_1.RedisService.getInstance();
-        yield redis.delValue(`perms:${requestUser.tenantId}:${userId}`);
+        await redis.delValue(`perms:${requestUser.tenantId}:${userId}`);
     }
     catch (error) {
         console.error("UpdateUserService: Error during associations/cache", error);
         throw new AppError_1.default("INTERNAL_ERROR_UPDATE_USER_RELATIONS", 500);
     }
     // await user.reload();
-    const updatedUser = yield (0, ShowUserService_1.default)(userId);
+    const updatedUser = await (0, ShowUserService_1.default)(userId);
     return (0, SerializeUser_1.SerializeUser)(updatedUser);
-});
+};
 exports.default = UpdateUserService;

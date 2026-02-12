@@ -35,6 +35,7 @@ class SessionManager {
   private isValidEnvelope(envelope: any): envelope is Envelope {
     return !!envelope
       && typeof envelope === "object"
+      && typeof envelope.id === "string"
       && typeof envelope.type === "string"
       && typeof envelope.timestamp === "number"
       && (typeof envelope.tenantId === "string" || typeof envelope.tenantId === "number")
@@ -105,9 +106,17 @@ class SessionManager {
       return;
     }
 
-    logger.info(`Received command: ${envelope.type}`);
+    logger.info(`Received command: ${envelope.type} for tenant ${envelope.tenantId}`);
 
-    switch (envelope.type as CommandType) {
+    // Security Check: If session exists, verify tenant ownership
+    const sessionId = (envelope.payload as any).sessionId;
+    if (sessionId) {
+      const existingSession = this.sessions.get(sessionId);
+      if (existingSession && String(existingSession.tenantId) !== String(envelope.tenantId)) {
+        logger.error(`[Security] Tenant ${envelope.tenantId} attempted to access session ${sessionId} belonging to tenant ${existingSession.tenantId}`);
+        return;
+      }
+    }
       case "session.start":
         await this.startSession(envelope.payload as StartSessionPayload, envelope.tenantId);
         break;
@@ -264,7 +273,7 @@ class SessionManager {
         }
       };
 
-      await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.contact.update`, updateEvent);
+      await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "contact.update"), updateEvent);
     } catch (error) {
       logger.error(`Error syncing contact ${payload.number}:`, error);
     }
@@ -305,7 +314,7 @@ class SessionManager {
         status: "DISCONNECTED"
       }
     };
-    await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId}.session.status`, statusEvent);
+    await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", sessionId, "session.status"), statusEvent);
   }
 
 
@@ -333,7 +342,7 @@ class SessionManager {
             status: currentStatus as any
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.session.status`, statusEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "session.status"), statusEvent);
         return;
       }
 
@@ -348,7 +357,7 @@ class SessionManager {
           status: "OPENING"
         }
       };
-      await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.session.status`, openingEvent);
+      await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "session.status"), openingEvent);
 
       // If force is true, we need to stop the existing session first if it exists
 
@@ -477,7 +486,7 @@ class SessionManager {
               }
             };
             logger.info(`Publishing pairing code event for session ${payload.sessionId} code ${formattedCode}`);
-            await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.session.pairingcode`, pairingEvent);
+            await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "session.pairingcode"), pairingEvent);
             return; // Success, exit function
 
           } catch (error: any) {
@@ -541,7 +550,7 @@ class SessionManager {
               attempt: 1 // Logic to track attempts could be added
             }
           };
-          await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.session.qrcode`, qrEvent);
+          await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "session.qrcode"), qrEvent);
         } else if (qr && payload.usePairingCode) {
           logger.info(`QR Code received for session ${payload.sessionId}, triggering pairing code flow...`);
           if (!pairingCodeRequested && !sock.authState.creds.registered) {
@@ -669,7 +678,7 @@ class SessionManager {
                   status: "SESSION_EXPIRED" as any
                 }
               };
-              await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.session.status`, statusEvent);
+              await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "session.status"), statusEvent);
             } else {
               const statusEvent: Envelope = {
                 id: uuidv4(),
@@ -681,7 +690,7 @@ class SessionManager {
                   status: "DISCONNECTED"
                 }
               };
-              await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.session.status`, statusEvent);
+              await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "session.status"), statusEvent);
             }
           }
         } else if (connection === "open") {
@@ -715,7 +724,7 @@ class SessionManager {
               profilePicUrl
             }
           };
-          await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.session.status`, statusEvent);
+          await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "session.status"), statusEvent);
 
           // [HYDRATION] Disabled per user instruction.
           // Groups/Contacts should only be created/updated when a message arrives.
@@ -796,7 +805,7 @@ class SessionManager {
                   ack: status
                 }
               };
-              await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+              await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
             }
           } else if (update.status) {
             // Fallback for top-level status
@@ -819,7 +828,7 @@ class SessionManager {
                 ack: status
               }
             };
-            await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+            await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
           }
         }
       });
@@ -843,7 +852,7 @@ class SessionManager {
             }
           };
 
-          await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.reaction`, reactionEvent);
+          await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.reaction"), reactionEvent);
         }
       });
 
@@ -874,7 +883,7 @@ class SessionManager {
                 isGroup: jid.endsWith("@g.us")
               }
             };
-            await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.contact.update`, updateEvent);
+            await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "contact.update"), updateEvent);
           }
         }
       });
@@ -905,7 +914,7 @@ class SessionManager {
               isGroup: true
             }
           };
-          await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.contact.update`, updateEvent);
+          await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "contact.update"), updateEvent);
         }
       });
 
@@ -921,7 +930,7 @@ class SessionManager {
           status: "DISCONNECTED"
         }
       };
-      await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.session.status`, statusEvent);
+      await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "session.status"), statusEvent);
       this.sessions.delete(payload.sessionId);
     }
   }
@@ -999,7 +1008,7 @@ class SessionManager {
                 number: correctJid.split("@")[0]
               }
             };
-            await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId ?? -1}.contact.update`, updateEvent);
+            await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", sessionId ?? -1, "contact.update"), updateEvent);
           }
 
           return correctJid;
@@ -1052,7 +1061,7 @@ class SessionManager {
             ack: 5 // Error - Session not found
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending message`);
       return;
@@ -1105,7 +1114,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${session.tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(session.tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
         logger.info(`[sendText] Emitted ACK 5 (Error) for Message ID: ${payload.messageId}`);
       } else {
         logger.warn(`[sendText] Failed to send. Cannot emit ACK 5 because I don't have the context message ID.`);
@@ -1143,7 +1152,7 @@ class SessionManager {
             participant: msg.key.participant || msg.key.remoteJid || ""
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId}.message.revoke`, revokeEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", sessionId, "message.revoke"), revokeEvent);
         return; // Stop processing to prevent empty bubble
       } else {
         logger.info(`[handleMessage] Ignored other ProtocolMsg type: ${protocolMsg.type}`);
@@ -1169,7 +1178,7 @@ class SessionManager {
             timestamp: reactionMsg.senderTimestampMs || Date.now()
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId}.message.reaction`, reactionEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", sessionId, "message.reaction"), reactionEvent);
       }
       return; // Stop processing to prevent empty bubble
     }
@@ -1410,7 +1419,7 @@ class SessionManager {
       }
     };
     logger.info(`[handleMessage] Publishing received event for ${msg.key.id} (fromMe: ${msgEvent.payload.message.fromMe})`);
-    await this.rabbitmq.publishEvent(`wbot.${tenantId}.${sessionId}.message.received`, msgEvent);
+    await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", sessionId, "message.received"), msgEvent);
   }
 
   private async sendMedia(payload: SendMediaPayload, tenantId: string | number) {
@@ -1428,7 +1437,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending media`);
       return;
@@ -1502,7 +1511,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${session.tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(session.tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
     }
   }
@@ -1590,7 +1599,7 @@ class SessionManager {
         }
       };
 
-      await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.history.status`, statusEvent);
+      await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "history.status"), statusEvent);
 
     } catch (error) {
       logger.error(`[HistorySync] Error syncing history for ${payload.contactNumber}:`, error);
@@ -1608,7 +1617,7 @@ class SessionManager {
         }
       };
 
-      await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.history.status`, errorEvent);
+      await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "history.status"), errorEvent);
     }
   }
   private async sendButtons(payload: SendButtonsPayload, tenantId: string | number) {
@@ -1626,7 +1635,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending buttons`);
       return;
@@ -1681,7 +1690,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${session.tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(session.tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
     }
   }
@@ -1701,7 +1710,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending list`);
       return;
@@ -1745,7 +1754,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${session.tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(session.tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
     }
   }
@@ -1765,7 +1774,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending poll`);
       return;
@@ -1807,7 +1816,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${session.tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(session.tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
     }
   }
@@ -1827,7 +1836,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending template`);
       return;
@@ -1885,7 +1894,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${session.tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(session.tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
     }
   }
@@ -1905,7 +1914,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending interactive message`);
       return;
@@ -1994,7 +2003,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${session.tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(session.tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
     }
   }
@@ -2014,7 +2023,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
       logger.error(`Session ${payload.sessionId} not found for sending carousel`);
       return;
@@ -2127,7 +2136,7 @@ class SessionManager {
             ack: 5 // Error
           }
         };
-        await this.rabbitmq.publishEvent(`wbot.${session.tenantId}.${payload.sessionId}.message.ack`, ackEvent);
+        await this.rabbitmq.publishEvent(this.rabbitmq.generateRoutingKey(session.tenantId, "whaileys", payload.sessionId, "message.ack"), ackEvent);
       }
     }
   }
