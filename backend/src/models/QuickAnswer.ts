@@ -25,6 +25,12 @@ class QuickAnswer extends Model<QuickAnswer> {
   @Column(DataType.TEXT)
   message: string;
 
+  @Column(DataType.STRING)
+  mediaType: "text" | "buttons" | "list" | "carousel";
+
+  @Column(DataType.TEXT)
+  dataJson: string | null;
+
   @CreatedAt
   createdAt: Date;
 

@@ -4,22 +4,26 @@ import AppError from "../../errors/AppError";
 interface QuickAnswerData {
   shortcut?: string;
   message?: string;
+  mediaType?: "text" | "buttons" | "list" | "carousel";
+  dataJson?: string | null;
 }
 
 interface Request {
   quickAnswerData: QuickAnswerData;
   quickAnswerId: string;
+  tenantId: string | number;
 }
 
 const UpdateQuickAnswerService = async ({
   quickAnswerData,
-  quickAnswerId
+  quickAnswerId,
+  tenantId
 }: Request): Promise<QuickAnswer> => {
-  const { shortcut, message } = quickAnswerData;
+  const { shortcut, message, mediaType, dataJson } = quickAnswerData;
 
   const quickAnswer = await QuickAnswer.findOne({
-    where: { id: quickAnswerId },
-    attributes: ["id", "shortcut", "message"]
+    where: { id: quickAnswerId, tenantId },
+    attributes: ["id", "shortcut", "message", "mediaType", "dataJson", "tenantId"]
   });
 
   if (!quickAnswer) {
@@ -27,11 +31,13 @@ const UpdateQuickAnswerService = async ({
   }
   await quickAnswer.update({
     shortcut,
-    message
+    message,
+    mediaType,
+    dataJson
   });
 
   await quickAnswer.reload({
-    attributes: ["id", "shortcut", "message"]
+    attributes: ["id", "shortcut", "message", "mediaType", "dataJson", "tenantId"]
   });
 
   return quickAnswer;

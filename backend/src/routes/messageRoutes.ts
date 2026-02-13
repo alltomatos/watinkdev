@@ -172,6 +172,12 @@ messageRoutes.post(
  *       200:
  *         description: Mensagem removida
  */
+messageRoutes.post(
+  "/messages/:ticketId/quick-answers/:quickAnswerId",
+  isAuth,
+  MessageController.sendQuickAnswer
+);
+
 messageRoutes.patch("/messages/:messageId/reaction", isAuth, MessageController.upsertReaction);
 messageRoutes.delete("/messages/:messageId", isAuth, MessageController.remove);
 

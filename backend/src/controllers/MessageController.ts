@@ -10,6 +10,10 @@ import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import DeleteWhatsAppMessage from "../services/WbotServices/DeleteWhatsAppMessage";
 import SendWhatsAppMedia from "../services/WbotServices/SendWhatsAppMedia";
 import SendWhatsAppMessage from "../services/WbotServices/SendWhatsAppMessage";
+import SendWhatsAppInteractive from "../services/WbotServices/SendWhatsAppInteractive";
+import SendWhatsAppCarousel from "../services/WbotServices/SendWhatsAppCarousel";
+import ShowQuickAnswerService from "../services/QuickAnswerService/ShowQuickAnswerService";
+import AppError from "../errors/AppError";
 
 type IndexQuery = {
   pageNumber: string;
@@ -85,6 +89,59 @@ export const remove = async (
   });
 
   return res.send();
+};
+
+export const sendQuickAnswer = async (req: Request, res: Response): Promise<Response> => {
+  const { ticketId, quickAnswerId } = req.params;
+  const { tenantId } = req.user;
+  const { logger } = require("../utils/logger");
+
+  const ticket = await ShowTicketService(ticketId, tenantId);
+  if (ticket.status !== "open") {
+    throw new AppError("ERR_TICKET_CLOSED", 400);
+  }
+  if (!ticket.whatsappId) {
+    throw new AppError("ERR_TICKET_WRONG_WHATSAPP_ID", 400);
+  }
+
+  const quickAnswer = await ShowQuickAnswerService(quickAnswerId, tenantId);
+  const qaType = quickAnswer.mediaType || "text";
+  let parsedPayload: any = null;
+  try {
+    parsedPayload = quickAnswer.dataJson ? JSON.parse(quickAnswer.dataJson) : null;
+  } catch (error) {
+    logger.warn(`[MessageController] Invalid quick answer dataJson quickAnswerId=${quickAnswer.id}`);
+  }
+
+  logger.info(`[MessageController] sendQuickAnswer quickAnswerId=${quickAnswer.id} ticketId=${ticket.id} type=${qaType}`);
+
+  if (qaType === "text") {
+    await SendWhatsAppMessage({ body: quickAnswer.message, ticket });
+    return res.status(200).json({ ok: true, type: qaType });
+  }
+
+  if (qaType === "buttons" || qaType === "list") {
+    await SendWhatsAppInteractive({
+      body: quickAnswer.message,
+      ticket,
+      buttons: qaType === "buttons" ? parsedPayload?.buttons : undefined,
+      list: qaType === "list" ? parsedPayload?.list : undefined
+    });
+    return res.status(200).json({ ok: true, type: qaType });
+  }
+
+  if (qaType === "carousel") {
+    await SendWhatsAppCarousel({
+      ticket,
+      body: quickAnswer.message,
+      cards: parsedPayload?.cards || []
+    });
+    return res.status(200).json({ ok: true, type: qaType });
+  }
+
+  logger.warn(`[MessageController] Invalid quick answer type fallback to text quickAnswerId=${quickAnswer.id}`);
+  await SendWhatsAppMessage({ body: quickAnswer.message, ticket });
+  return res.status(200).json({ ok: true, type: "text-fallback" });
 };
 
 export const upsertReaction = async (

@@ -1,4 +1,4 @@
-import { Sequelize } from "sequelize";
+import { Sequelize, Op } from "sequelize";
 import QuickAnswer from "../../models/QuickAnswer";
 
 interface Request {
@@ -18,14 +18,24 @@ const ListQuickAnswerService = async ({
   pageNumber = "1",
   tenantId
 }: Request): Promise<Response> => {
-  const whereCondition = {
-    tenantId,
-    message: Sequelize.where(
-      Sequelize.fn("LOWER", Sequelize.col("message")),
-      "LIKE",
-      `%${searchParam.toLowerCase().trim()}%`
-    )
-  };
+  const normalized = searchParam.toLowerCase().trim();
+  const whereCondition: any = { tenantId };
+
+  if (normalized) {
+    whereCondition[Op.or] = [
+      Sequelize.where(
+        Sequelize.fn("LOWER", Sequelize.col("message")),
+        "LIKE",
+        `%${normalized}%`
+      ),
+      Sequelize.where(
+        Sequelize.fn("LOWER", Sequelize.col("shortcut")),
+        "LIKE",
+        `%${normalized}%`
+      )
+    ];
+  }
+
   const limit = 20;
   const offset = limit * (+pageNumber - 1);
 
@@ -33,7 +43,7 @@ const ListQuickAnswerService = async ({
     where: whereCondition,
     limit,
     offset,
-    order: [["message", "ASC"]]
+    order: [["shortcut", "ASC"]]
   });
 
   const hasMore = count > offset + quickAnswers.length;
