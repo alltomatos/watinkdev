@@ -47,7 +47,6 @@ const useStyles = makeStyles(theme => ({
 const NotificationToast = ({ ticket, message, contact, history }) => {
 	const handleToastClick = () => {
 		history.push(`/tickets/${ticket.id}`);
-		// Trigger window focus logic or any other desired behavior
 		window.focus();
 	};
 
@@ -58,18 +57,45 @@ const NotificationToast = ({ ticket, message, contact, history }) => {
 				cursor: "pointer",
 				display: "flex",
 				alignItems: "center",
-				padding: "4px" // Add some padding
+				gap: 12,
+				padding: "6px 8px",
+				minWidth: 280,
+				maxWidth: 360,
 			}}
 		>
-			<Avatar
-				src={contact.profilePicUrl}
-				alt={contact.name}
-				style={{ marginRight: 12, width: 40, height: 40 }}
-			/>
-			<Box display="flex" flexDirection="column">
-				<Typography variant="body1" style={{ fontWeight: 600 }}>
-					{contact.name || "Contato"}
-				</Typography>
+			<Box style={{ position: "relative" }}>
+				<Avatar
+					src={contact.profilePicUrl}
+					alt={contact.name}
+					style={{ width: 42, height: 42, boxShadow: "0 2px 8px rgba(0,0,0,0.18)" }}
+				/>
+				<Box
+					style={{
+						position: "absolute",
+						right: -2,
+						top: -2,
+						width: 10,
+						height: 10,
+						borderRadius: "50%",
+						background: "#ff2d55",
+						border: "2px solid #fff",
+					}}
+				/>
+			</Box>
+
+			<Box display="flex" flexDirection="column" style={{ minWidth: 0, flex: 1 }}>
+				<Box display="flex" alignItems="center" justifyContent="space-between" style={{ gap: 8 }}>
+					<Typography
+						variant="body1"
+						style={{ fontWeight: 700, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+					>
+						{contact.name || "Contato"}
+					</Typography>
+					<Typography variant="caption" style={{ color: "#8e8e93", whiteSpace: "nowrap" }}>
+						agora
+					</Typography>
+				</Box>
+
 				<Typography
 					variant="body2"
 					color="textSecondary"
@@ -79,8 +105,8 @@ const NotificationToast = ({ ticket, message, contact, history }) => {
 						display: "-webkit-box",
 						WebkitLineClamp: 2,
 						WebkitBoxOrient: "vertical",
-						maxWidth: "220px", // Limit width to prevent layout breaking
-						lineHeight: "1.2em"
+						lineHeight: "1.25em",
+						marginTop: 2,
 					}}
 				>
 					{message.body}
@@ -234,11 +260,14 @@ const NotificationsPopOver = () => {
 			draggable: true,
 			progress: undefined,
 			style: {
-				backgroundColor: theme.palette.background.paper,
+				background: theme.palette.type === "dark"
+					? "linear-gradient(180deg, rgba(35,35,38,0.95), rgba(24,24,26,0.95))"
+					: "linear-gradient(180deg, #ffffff, #f8f9fb)",
 				color: theme.palette.text.primary,
-				borderRadius: theme.shape.borderRadius,
-				boxShadow: theme.shadows[3],
-				border: theme.palette.type === 'dark' ? `1px solid ${theme.palette.divider}` : 'none'
+				borderRadius: 14,
+				padding: "4px 6px",
+				boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
+				border: theme.palette.type === "dark" ? `1px solid ${theme.palette.divider}` : "1px solid rgba(0,0,0,0.06)",
 			}
 		});
 	};
