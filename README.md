@@ -65,6 +65,12 @@ Comece agora com nossos guias oficiais:
 
 👉 **[Acesse a Documentação Completa](userguide/README.md)**
 
+### Novidades (MVP Ronaldo)
+- Início manual de fluxo dentro do ticket/chat.
+- Respostas rápidas com tipos `text`, `buttons`, `list` e `carousel`.
+- Slash command `/` no input do chat para picker e envio no formato da resposta rápida.
+- Guia técnico: `docs/flow-manual-and-quickanswers-interactive.md`.
+
 ---
 
 ## 🤝 Comunidade

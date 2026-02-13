@@ -54,7 +54,7 @@ const initRecorder = async () => {
 
 const useStyles = makeStyles(theme => ({
   mainWrapper: {
-    background: "#f0f2f5",
+    background: theme.palette.type === 'dark' ? "#111B21" : "#f0f2f5",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -67,7 +67,7 @@ const useStyles = makeStyles(theme => ({
   },
 
   newMessageBox: {
-    background: "#ffffff",
+    background: theme.palette.type === 'dark' ? "#111B21" : "#f0f2f5",
     width: "100%",
     display: "flex",
     padding: "12px 16px",
@@ -100,6 +100,18 @@ const useStyles = makeStyles(theme => ({
     position: "relative",
     border: "1px solid #e5e7eb",
     boxShadow: "none",
+  },
+
+  messageInputWrapperWhatsapp: {
+    padding: "10px 16px",
+    marginRight: 10,
+    background: theme.palette.type === 'dark' ? "#2A3942" : "#FFFFFF",
+    display: "flex",
+    borderRadius: "24px",
+    flex: 1,
+    position: "relative",
+    border: "none",
+    boxShadow: "0 1px 1px rgba(0,0,0,0.1)",
   },
 
   messageInput: {
@@ -385,9 +397,17 @@ const MessageInput = ({ ticketStatus, whatsappStatus }) => {
     handleLoadQuickAnswer(e.target.value);
   };
 
-  const handleQuickAnswersClick = value => {
-    setInputMessage(value);
-    setTypeBar(false);
+  const handleQuickAnswersClick = async quickAnswer => {
+    try {
+      setLoading(true);
+      await api.post(`/messages/${ticketId}/quick-answers/${quickAnswer.id}`);
+      setInputMessage("");
+      setTypeBar(false);
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddEmoji = e => {
@@ -933,7 +953,7 @@ const MessageInput = ({ ticketStatus, whatsappStatus }) => {
               </MenuItem>
             </Menu>
           </Hidden>
-          <div className={appTheme === "saas" ? classes.messageInputWrapperSaas : classes.messageInputWrapper}>
+          <div className={appTheme === "saas" ? classes.messageInputWrapperSaas : appTheme === "whatsapp" ? classes.messageInputWrapperWhatsapp : classes.messageInputWrapper}>
             <InputBase
               inputRef={input => {
                 input && input.focus();
@@ -969,8 +989,8 @@ const MessageInput = ({ ticketStatus, whatsappStatus }) => {
                       key={index}
                     >
                       {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-                      <a onClick={() => handleQuickAnswersClick(value.message)}>
-                        {`${value.shortcut} - ${value.message}`}
+                      <a onClick={() => handleQuickAnswersClick(value)}>
+                        {`${value.shortcut} - [${value.mediaType || "text"}] ${value.message}`}
                       </a>
                     </li>
                   );

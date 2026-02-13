@@ -13,6 +13,10 @@ import {
   DialogContent,
   DialogTitle,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@material-ui/core";
 import { green } from "@material-ui/core/colors";
 import { i18n } from "../../translate/i18n";
@@ -47,14 +51,10 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const QuickAnswerSchema = Yup.object().shape({
-  shortcut: Yup.string()
-    .min(2, "Too Short!")
-    .max(15, "Too Long!")
-    .required("Required"),
-  message: Yup.string()
-    .min(8, "Too Short!")
-    .max(30000, "Too Long!")
-    .required("Required"),
+  shortcut: Yup.string().min(2, "Too Short!").max(15, "Too Long!").required("Required"),
+  message: Yup.string().min(1, "Too Short!").max(30000, "Too Long!").required("Required"),
+  mediaType: Yup.string().oneOf(["text", "buttons", "list", "carousel"]).required(),
+  dataJson: Yup.string().nullable(),
 });
 
 const QuickAnswersModal = ({
@@ -70,6 +70,8 @@ const QuickAnswersModal = ({
   const initialState = {
     shortcut: "",
     message: "",
+    mediaType: "text",
+    dataJson: "",
   };
 
   const [quickAnswer, setQuickAnswer] = useState(initialState);
@@ -93,7 +95,11 @@ const QuickAnswersModal = ({
       try {
         const { data } = await api.get(`/quickAnswers/${quickAnswerId}`);
         if (isMounted.current) {
-          setQuickAnswer(data);
+          setQuickAnswer({
+            ...data,
+            mediaType: data.mediaType || "text",
+            dataJson: data.dataJson || "",
+          });
         }
       } catch (err) {
         toastError(err);
@@ -110,11 +116,16 @@ const QuickAnswersModal = ({
 
   const handleSaveQuickAnswer = async (values) => {
     try {
+      const payload = {
+        ...values,
+        dataJson: values.mediaType === "text" ? null : (values.dataJson || null),
+      };
+
       if (quickAnswerId) {
-        await api.put(`/quickAnswers/${quickAnswerId}`, values);
+        await api.put(`/quickAnswers/${quickAnswerId}`, payload);
         handleClose();
       } else {
-        const { data } = await api.post("/quickAnswers", values);
+        const { data } = await api.post("/quickAnswers", payload);
         if (onSave) {
           onSave(data);
         }
@@ -128,17 +139,9 @@ const QuickAnswersModal = ({
 
   return (
     <div className={classes.root}>
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        maxWidth="sm"
-        fullWidth
-        scroll="paper"
-      >
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth scroll="paper">
         <DialogTitle id="form-dialog-title">
-          {quickAnswerId
-            ? `${i18n.t("quickAnswersModal.title.edit")}`
-            : `${i18n.t("quickAnswersModal.title.add")}`}
+          {quickAnswerId ? `${i18n.t("quickAnswersModal.title.edit")}` : `${i18n.t("quickAnswersModal.title.add")}`}
         </DialogTitle>
         <Formik
           initialValues={quickAnswer}
@@ -151,7 +154,7 @@ const QuickAnswersModal = ({
             }, 400);
           }}
         >
-          {({ values, errors, touched, isSubmitting }) => (
+          {({ values, errors, touched, isSubmitting, setFieldValue }) => (
             <Form>
               <DialogContent dividers>
                 <div className={classes.textQuickAnswerContainer}>
@@ -168,6 +171,27 @@ const QuickAnswersModal = ({
                     fullWidth
                   />
                 </div>
+
+                <FormControl variant="outlined" margin="dense" fullWidth>
+                  <InputLabel id="qa-type-label">Tipo</InputLabel>
+                  <Select
+                    labelId="qa-type-label"
+                    value={values.mediaType || "text"}
+                    onChange={(e) => {
+                      setFieldValue("mediaType", e.target.value);
+                      if (e.target.value === "text") {
+                        setFieldValue("dataJson", "");
+                      }
+                    }}
+                    label="Tipo"
+                  >
+                    <MenuItem value="text">Texto</MenuItem>
+                    <MenuItem value="buttons">Botões</MenuItem>
+                    <MenuItem value="list">Lista</MenuItem>
+                    <MenuItem value="carousel">Carrossel</MenuItem>
+                  </Select>
+                </FormControl>
+
                 <div className={classes.textQuickAnswerContainer}>
                   <Field
                     as={TextField}
@@ -179,36 +203,36 @@ const QuickAnswersModal = ({
                     margin="dense"
                     className={classes.textField}
                     multiline
-                    rows={5}
+                    rows={4}
                     fullWidth
                   />
                 </div>
+
+                {values.mediaType !== "text" && (
+                  <div className={classes.textQuickAnswerContainer}>
+                    <Field
+                      as={TextField}
+                      label="Payload JSON"
+                      name="dataJson"
+                      error={touched.dataJson && Boolean(errors.dataJson)}
+                      helperText={touched.dataJson && errors.dataJson}
+                      variant="outlined"
+                      margin="dense"
+                      className={classes.textField}
+                      multiline
+                      rows={8}
+                      fullWidth
+                    />
+                  </div>
+                )}
               </DialogContent>
               <DialogActions>
-                <Button
-                  onClick={handleClose}
-                  color="secondary"
-                  disabled={isSubmitting}
-                  variant="outlined"
-                >
+                <Button onClick={handleClose} color="secondary" disabled={isSubmitting} variant="outlined">
                   {i18n.t("quickAnswersModal.buttons.cancel")}
                 </Button>
-                <Button
-                  type="submit"
-                  color="primary"
-                  disabled={isSubmitting}
-                  variant="contained"
-                  className={classes.btnWrapper}
-                >
-                  {quickAnswerId
-                    ? `${i18n.t("quickAnswersModal.buttons.okEdit")}`
-                    : `${i18n.t("quickAnswersModal.buttons.okAdd")}`}
-                  {isSubmitting && (
-                    <CircularProgress
-                      size={24}
-                      className={classes.buttonProgress}
-                    />
-                  )}
+                <Button type="submit" color="primary" disabled={isSubmitting} variant="contained" className={classes.btnWrapper}>
+                  {quickAnswerId ? `${i18n.t("quickAnswersModal.buttons.okEdit")}` : `${i18n.t("quickAnswersModal.buttons.okAdd")}`}
+                  {isSubmitting && <CircularProgress size={24} className={classes.buttonProgress} />}
                 </Button>
               </DialogActions>
             </Form>

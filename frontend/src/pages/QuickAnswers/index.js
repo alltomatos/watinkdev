@@ -243,6 +243,7 @@ const QuickAnswers = () => {
               <TableCell align="center">
                 {i18n.t("quickAnswers.table.shortcut")}
               </TableCell>
+              <TableCell align="center">Tipo</TableCell>
               <TableCell align="center">
                 {i18n.t("quickAnswers.table.message")}
               </TableCell>
@@ -256,6 +257,7 @@ const QuickAnswers = () => {
               {quickAnswers.map((quickAnswer) => (
                 <TableRow key={quickAnswer.id}>
                   <TableCell align="center">{quickAnswer.shortcut}</TableCell>
+                  <TableCell align="center">{quickAnswer.mediaType || "text"}</TableCell>
                   <TableCell align="center">{quickAnswer.message}</TableCell>
                   <TableCell align="center">
                     <IconButton
@@ -277,7 +279,7 @@ const QuickAnswers = () => {
                   </TableCell>
                 </TableRow>
               ))}
-              {loading && <TableRowSkeleton columns={3} />}
+              {loading && <TableRowSkeleton columns={4} />}
             </>
           </TableBody>
         </Table>
