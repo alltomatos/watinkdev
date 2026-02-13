@@ -171,7 +171,7 @@ const FlowBuilder = () => {
         fetchSettings();
     }, []);
 
-    const MESSAGE_NODE_TYPES = useMemo(() => new Set(['message', 'menu', 'default', 'textUpdater']), []);
+    const MESSAGE_NODE_TYPES = useMemo(() => new Set(['message', 'menu', 'default', 'textupdater']), []);
 
     const flowHasOutboundMessageNodes = useCallback(() => {
         return nodes.some((node) => MESSAGE_NODE_TYPES.has(String(node?.type || '').toLowerCase()));

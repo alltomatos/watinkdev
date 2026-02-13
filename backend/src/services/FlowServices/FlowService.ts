@@ -12,7 +12,7 @@ interface Request {
     whatsappId?: number;
 }
 
-const MESSAGE_NODE_TYPES = new Set(["message", "menu", "default", "textUpdater"]);
+const MESSAGE_NODE_TYPES = new Set(["message", "menu", "default", "textupdater"]);
 
 const hasOutboundMessageNodes = (nodes: any[] = []): boolean => {
     return nodes.some((node: any) => MESSAGE_NODE_TYPES.has(String(node?.type || "").toLowerCase()));

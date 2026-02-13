@@ -539,7 +539,8 @@ const handleMessageReceived = async (payload: MessageReceivedPayload, tenantId: 
         contactId: msgContact.id,
         messageBody: preservedBody || message.body || "",
         fromMe: !!message.fromMe,
-        isGroup: !!message.isGroup
+        isGroup: !!message.isGroup,
+        whatsappId: whatsapp.id
       },
       tenantId
     );
@@ -651,7 +652,8 @@ const handleMessageReceived = async (payload: MessageReceivedPayload, tenantId: 
         contactId: msgContact.id,
         messageBody: msgData.body || "",
         fromMe: !!message.fromMe,
-        isGroup: !!message.isGroup
+        isGroup: !!message.isGroup,
+        whatsappId: whatsapp.id
       },
       tenantId
     );
