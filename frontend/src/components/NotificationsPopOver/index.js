@@ -78,7 +78,7 @@ const useStyles = makeStyles(theme => ({
 		maxWidth: 400,
 		borderRadius: 16,
 		outline: "none",
-		borderLeft: `4px solid ${theme.palette.primary.main}`,
+		borderLeft: `3px solid ${theme.palette.primary.main}`,
 		background: theme.palette.type === "dark"
 			? "linear-gradient(180deg, rgba(36,39,46,0.96), rgba(26,29,36,0.96))"
 			: "linear-gradient(180deg, #ffffff, #f4f7ff)",
@@ -87,6 +87,7 @@ const useStyles = makeStyles(theme => ({
 		},
 		"&:hover": {
 			transform: "translateY(-1px)",
+			boxShadow: "0 8px 18px rgba(0,0,0,0.16)",
 		},
 		[theme.breakpoints.down("xs")]: {
 			minWidth: 250,
@@ -335,7 +336,7 @@ const NotificationsPopOver = () => {
 
 		toast(<NotificationToast ticket={ticket} message={message} contact={contact} history={historyRef.current} classes={classes} />, {
 			position: "top-right",
-			autoClose: 5500,
+			autoClose: 6500,
 			hideProgressBar: true,
 			closeOnClick: true,
 			pauseOnHover: true,
@@ -346,7 +347,7 @@ const NotificationsPopOver = () => {
 				color: theme.palette.text.primary,
 				borderRadius: 16,
 				padding: 0,
-				boxShadow: "0 14px 32px rgba(0,0,0,0.20)",
+				boxShadow: "0 10px 22px rgba(0,0,0,0.14)",
 				border: "none",
 			}
 		});
