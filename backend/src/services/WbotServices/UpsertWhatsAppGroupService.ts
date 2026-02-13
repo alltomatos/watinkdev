@@ -20,13 +20,21 @@ const UpsertWhatsAppGroupService = async ({
   participantJid,
   participantName
 }: Request): Promise<WhatsAppGroup> => {
+  const normalizedSubject = (() => {
+    const raw = (subject || "").trim();
+    if (!raw) return "";
+    if (participantName && raw === participantName.trim()) return "";
+    if (raw === groupJid) return "";
+    return raw;
+  })();
+
   const [group] = await WhatsAppGroup.findOrCreate({
     where: { tenantId, groupJid },
     defaults: {
       tenantId,
       whatsappId,
       groupJid,
-      subject: subject || groupJid,
+      subject: normalizedSubject || groupJid,
       contactId,
       participantsCount: 0,
       metadataJson: {}
@@ -35,7 +43,7 @@ const UpsertWhatsAppGroupService = async ({
 
   await group.update({
     whatsappId,
-    subject: subject || group.subject || groupJid,
+    subject: normalizedSubject || group.subject || groupJid,
     contactId: contactId || group.contactId
   });
 

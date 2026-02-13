@@ -5,6 +5,7 @@ import WhatsAppGroup from "../models/WhatsAppGroup";
 import WhatsAppGroupParticipant from "../models/WhatsAppGroupParticipant";
 import Message from "../models/Message";
 import Whatsapp from "../models/Whatsapp";
+import Contact from "../models/Contact";
 import RabbitMQService from "../services/RabbitMQService";
 import { Envelope } from "../microservice/contracts";
 
@@ -14,12 +15,13 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
   const groups = await WhatsAppGroup.findAll({
     where: { tenantId },
     attributes: ["groupJid", "subject", "participantsCount", "updatedAt"],
+    include: [{ model: Contact, as: "contact", attributes: ["name", "isGroup"], required: false }],
     order: [["updatedAt", "DESC"]]
   });
 
-  const data = groups.map(g => ({
+  const data = groups.map((g: any) => ({
     id: g.groupJid,
-    subject: g.subject,
+    subject: g.contact?.isGroup && g.contact?.name ? g.contact.name : g.subject,
     participantsCount: g.participantsCount,
     updatedAt: g.updatedAt
   }));
@@ -32,14 +34,20 @@ export const show = async (req: Request, res: Response): Promise<Response> => {
   const { groupId } = req.params;
 
   const group = await WhatsAppGroup.findOne({
-    where: { tenantId, groupJid: groupId }
+    where: { tenantId, groupJid: groupId },
+    include: [{ model: Contact, as: "contact", attributes: ["name", "isGroup"], required: false }]
   });
 
   if (!group) {
     throw new AppError("ERR_WA_GROUP_NOT_FOUND", 404);
   }
 
-  return res.status(200).json(group);
+  const payload: any = group.toJSON();
+  if (payload.contact?.isGroup && payload.contact?.name) {
+    payload.subject = payload.contact.name;
+  }
+
+  return res.status(200).json(payload);
 };
 
 export const participants = async (req: Request, res: Response): Promise<Response> => {

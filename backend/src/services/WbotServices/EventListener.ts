@@ -508,7 +508,7 @@ const handleMessageReceived = async (payload: MessageReceivedPayload, tenantId: 
           tenantId,
           whatsappId: whatsapp.id,
           groupJid: message.from,
-          subject: message.pushName || message.from,
+          subject: groupContact?.name || message.from,
           contactId: groupContact?.id,
           participantJid: message.participant,
           participantName: message.pushName
@@ -635,7 +635,7 @@ const handleMessageReceived = async (payload: MessageReceivedPayload, tenantId: 
       tenantId,
       whatsappId: whatsapp.id,
       groupJid: message.from,
-      subject: message.pushName || message.from,
+      subject: groupContact?.name || message.from,
       contactId: groupContact?.id,
       participantJid: message.participant,
       participantName: message.pushName
