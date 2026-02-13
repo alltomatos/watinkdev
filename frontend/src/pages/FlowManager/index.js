@@ -14,7 +14,8 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    Chip
 } from '@material-ui/core';
 import { Add, Edit, Delete, PlayArrow } from '@material-ui/icons';
 import { toast } from 'react-toastify';
@@ -167,11 +168,19 @@ const FlowManager = () => {
                                 Status: {flow.isActive ? 'Ativo' : 'Inativo'}
                             </Typography>
 
-                            {flow.whatsapp && (
-                                <Typography variant="caption" display="block" color="textPrimary">
-                                    Conexão: <strong>{flow.whatsapp.name}</strong>
-                                </Typography>
-                            )}
+                            <Typography variant="caption" display="block" color="textPrimary" style={{ marginTop: 6 }}>
+                                Conexão: <strong>{flow.whatsapp?.name || 'Sem conexão'}</strong>
+                            </Typography>
+
+                            <Chip
+                                size="small"
+                                label={flow.whatsapp?.name ? 'Conectado' : 'Sem conexão'}
+                                style={{
+                                    marginTop: 8,
+                                    backgroundColor: flow.whatsapp?.name ? '#e8f5e9' : '#fff3e0',
+                                    color: flow.whatsapp?.name ? '#2e7d32' : '#ef6c00'
+                                }}
+                            />
                         </Paper>
                     </Grid>
                 ))}

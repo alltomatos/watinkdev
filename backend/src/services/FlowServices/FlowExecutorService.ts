@@ -52,6 +52,8 @@ class FlowExecutorService {
     const flow = await Flow.findByPk(flowId);
     if (!flow) throw new AppError("Flow not found", 404);
 
+    logger.info(`[FlowExecutor] start flowId=${flow.id} whatsappId=${flow.whatsappId || "none"}`);
+
     const resolvedTenantId = tenantId || (context as any).tenantId || flow.tenantId;
     if (!resolvedTenantId || String(flow.tenantId) !== String(resolvedTenantId)) {
       throw new AppError("ERR_FLOW_FORBIDDEN", 403);
@@ -152,7 +154,7 @@ class FlowExecutorService {
   }
 
   private async runNode(session: FlowSession, flow: Flow, node: any): Promise<FlowSession> {
-    logger.info(`FlowExecutor: Running node ${node.id} (${node.type}) for Session ${session.id}`);
+    logger.info(`FlowExecutor: Running node ${node.id} (${node.type}) for Session ${session.id} flowId=${flow.id} whatsappId=${flow.whatsappId || "none"}`);
 
     // Update Session Pointer
     await session.update({ currentStepId: node.id });
@@ -262,6 +264,9 @@ class FlowExecutorService {
 
     const ticket = await ShowTicketService(context.ticketId);
     if (!ticket) return;
+
+    const flow = await Flow.findByPk(session.flowId);
+    logger.info(`FlowExecutor: sendMessage flowId=${session.flowId} whatsappId=${flow?.whatsappId || "none"} ticketId=${ticket.id}`);
 
     // Se não houver nodeData ou o tipo for texto, usar lógica simples
     const contentType = nodeData?.contentType || 'text';

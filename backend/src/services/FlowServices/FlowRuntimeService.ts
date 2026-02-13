@@ -9,6 +9,7 @@ export interface WhatsAppFlowEvent {
   messageBody: string;
   fromMe: boolean;
   isGroup?: boolean;
+  whatsappId?: number;
 }
 
 export interface TagAddedFlowEvent {
@@ -19,7 +20,7 @@ export interface TagAddedFlowEvent {
 
 class FlowRuntimeService {
   public async processWhatsAppMessage(data: WhatsAppFlowEvent, tenantId: number | string): Promise<void> {
-    const { ticketId, contactId, messageBody, fromMe } = data;
+    const { ticketId, contactId, messageBody, fromMe, whatsappId } = data;
 
     if (!tenantId) {
       logger.error("[FlowRuntime] Missing tenantId in processWhatsAppMessage. Failing closed.");
@@ -38,7 +39,7 @@ class FlowRuntimeService {
     });
 
     if (activeSession) {
-      logger.info(`[FlowRuntime] Found active session ${activeSession.id} for ticket ${ticketId}`);
+      logger.info(`[FlowRuntime] Found active session ${activeSession.id} for ticket ${ticketId} whatsappId=${whatsappId || "none"}`);
       await FlowExecutorService.next(activeSession.id, messageBody, tenantId);
       return;
     }
@@ -51,7 +52,7 @@ class FlowRuntimeService {
 
     if (!trigger) return;
 
-    logger.info(`[FlowRuntime] Trigger matched! Starting Flow ${trigger.flowId}`);
+    logger.info(`[FlowRuntime] Trigger matched! Starting Flow ${trigger.flowId} whatsappId=${whatsappId || "none"}`);
     await FlowExecutorService.start(trigger.flowId, {
       ticketId,
       contactId,

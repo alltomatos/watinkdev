@@ -12,6 +12,12 @@ interface Request {
     whatsappId?: number;
 }
 
+const MESSAGE_NODE_TYPES = new Set(["message", "menu", "default", "textUpdater"]);
+
+const hasOutboundMessageNodes = (nodes: any[] = []): boolean => {
+    return nodes.some((node: any) => MESSAGE_NODE_TYPES.has(String(node?.type || "").toLowerCase()));
+};
+
 const CreateFlowService = async ({
     name,
     nodes,
@@ -140,6 +146,19 @@ const ToggleFlowService = async ({ id, tenantId }: { id: number; tenantId: strin
 
     // Toggle isActive
     const newStatus = !flow.isActive;
+
+    // Se ativando e o fluxo tiver nós de envio, conexão WhatsApp é obrigatória
+    if (newStatus) {
+        const flowNodes = Array.isArray(flow.nodes) ? (flow.nodes as any[]) : [];
+        const requiresConnection = hasOutboundMessageNodes(flowNodes);
+
+        if (requiresConnection && !flow.whatsappId) {
+            throw new AppError(
+                "Este fluxo possui nós de envio de mensagem. Vincule uma conexão WhatsApp antes de ativar.",
+                400
+            );
+        }
+    }
 
     // Se ativando, verificar se whatsappId já está em uso por outro fluxo ativo
     if (newStatus && flow.whatsappId) {

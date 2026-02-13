@@ -13,7 +13,7 @@ import 'reactflow/dist/style.css';
 import './flowbuilder.css';
 
 import { makeStyles } from '@material-ui/core/styles';
-import { Paper, IconButton, Tooltip, Button, CircularProgress, Switch, FormControlLabel } from '@material-ui/core';
+import { Paper, IconButton, Tooltip, Button, CircularProgress, FormControl, InputLabel, Select, MenuItem, Typography } from '@material-ui/core';
 import {
     Chat as ChatIcon,
     ChevronRight as ChevronRightIcon,
@@ -95,6 +95,21 @@ const useStyles = makeStyles((theme) => ({
     },
     fileInput: {
         display: 'none'
+    },
+    connectionPanel: {
+        position: 'absolute',
+        top: 64,
+        right: 70,
+        zIndex: 15,
+        minWidth: 260,
+        background: '#fff',
+        padding: '8px 10px',
+        borderRadius: 8,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+    },
+    connectionStatus: {
+        marginTop: 6,
+        fontSize: 12
     }
 }));
 
@@ -129,9 +144,10 @@ const FlowBuilder = () => {
     const [isEditorOpen, setIsEditorOpen] = useState(false);
 
     // Estado para informações do fluxo (ativo/inativo)
-    const [flowInfo, setFlowInfo] = useState({ name: '', isActive: true });
+    const [flowInfo, setFlowInfo] = useState({ name: '', isActive: true, whatsappId: '', whatsappName: '' });
     const [simulatorOpen, setSimulatorOpen] = useState(false);
     const [aiEnabled, setAiEnabled] = useState(false);
+    const [whatsapps, setWhatsapps] = useState([]);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -154,6 +170,23 @@ const FlowBuilder = () => {
         };
         fetchSettings();
     }, []);
+
+    const MESSAGE_NODE_TYPES = useMemo(() => new Set(['message', 'menu', 'default', 'textUpdater']), []);
+
+    const flowHasOutboundMessageNodes = useCallback(() => {
+        return nodes.some((node) => MESSAGE_NODE_TYPES.has(String(node?.type || '').toLowerCase()));
+    }, [nodes, MESSAGE_NODE_TYPES]);
+
+    const validateConnectionRequirement = useCallback((nextStatus = flowInfo.isActive, silent = false) => {
+        const requiresConnection = flowHasOutboundMessageNodes();
+        if (nextStatus && requiresConnection && !flowInfo.whatsappId) {
+            if (!silent) {
+                toast.error('Este fluxo possui nós de envio. Vincule uma conexão WhatsApp antes de salvar/ativar.');
+            }
+            return false;
+        }
+        return true;
+    }, [flowHasOutboundMessageNodes, flowInfo.isActive, flowInfo.whatsappId]);
 
     // AutoSave Timer
     const saveTimeoutRef = useRef(null);
@@ -203,6 +236,19 @@ const FlowBuilder = () => {
         helpdesk: HelpdeskNode
     }), []);
 
+    const loadWhatsapps = async () => {
+        try {
+            const { data } = await api.get('/whatsapp');
+            setWhatsapps(Array.isArray(data) ? data : []);
+        } catch (err) {
+            toast.error('Erro ao carregar conexões');
+        }
+    };
+
+    useEffect(() => {
+        loadWhatsapps();
+    }, []);
+
     useEffect(() => {
         if (flowId) {
             loadFlow(flowId);
@@ -230,7 +276,12 @@ const FlowBuilder = () => {
         try {
             const { data } = await api.get(`/flows/${id}`);
             // Salvar info do fluxo
-            setFlowInfo({ name: data.name, isActive: data.isActive !== false });
+            setFlowInfo({
+                name: data.name,
+                isActive: data.isActive !== false,
+                whatsappId: data.whatsappId || '',
+                whatsappName: data.whatsapp?.name || ''
+            });
 
             if (data.nodes) {
                 const hydratedNodes = data.nodes.map(node => ({
@@ -250,19 +301,29 @@ const FlowBuilder = () => {
     };
 
     const handleSave = async (silent = false) => {
+        if (!validateConnectionRequirement(flowInfo.isActive, silent)) {
+            return;
+        }
+
         try {
             await api.put(`/flows/${flowId}`, {
                 nodes,
-                edges
+                edges,
+                whatsappId: flowInfo.whatsappId || null
             });
             if (!silent) toast.success("Fluxo salvo com sucesso!");
         } catch (err) {
-            if (!silent) toast.error("Erro ao salvar fluxo");
+            if (!silent) toast.error(err.response?.data?.error || "Erro ao salvar fluxo");
         }
     };
 
     // Toggle ativar/desativar fluxo
     const handleToggle = async () => {
+        const nextStatus = !flowInfo.isActive;
+        if (!validateConnectionRequirement(nextStatus)) {
+            return;
+        }
+
         try {
             const { data } = await api.post(`/flows/${flowId}/toggle`);
             setFlowInfo(prev => ({ ...prev, isActive: data.isActive }));
@@ -270,6 +331,15 @@ const FlowBuilder = () => {
         } catch (err) {
             toast.error(err.response?.data?.error || "Erro ao alternar status do fluxo");
         }
+    };
+
+    const handleFlowWhatsappChange = (value) => {
+        const selected = whatsapps.find(w => String(w.id) === String(value));
+        setFlowInfo(prev => ({
+            ...prev,
+            whatsappId: value,
+            whatsappName: selected?.name || ''
+        }));
     };
 
     // Simular fluxo
@@ -483,6 +553,33 @@ const FlowBuilder = () => {
                                     {flowInfo.isActive ? 'Ativo' : 'Inativo'}
                                 </Button>
                             </Tooltip>
+                        </div>
+
+                        <div className={classes.connectionPanel}>
+                            <FormControl fullWidth size="small" variant="outlined">
+                                <InputLabel id="flow-whatsapp-label">Conexão WhatsApp</InputLabel>
+                                <Select
+                                    labelId="flow-whatsapp-label"
+                                    value={flowInfo.whatsappId || ''}
+                                    onChange={(e) => handleFlowWhatsappChange(e.target.value)}
+                                    label="Conexão WhatsApp"
+                                >
+                                    <MenuItem value="">Sem conexão</MenuItem>
+                                    {whatsapps.map((whatsapp) => (
+                                        <MenuItem key={whatsapp.id} value={whatsapp.id}>{whatsapp.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <Typography className={classes.connectionStatus} style={{ color: flowInfo.whatsappId ? '#2e7d32' : '#ef6c00' }}>
+                                {flowInfo.whatsappId
+                                    ? `Vinculado: ${flowInfo.whatsappName || 'Conexão selecionada'}`
+                                    : 'Sem conexão vinculada'}
+                            </Typography>
+                            {flowHasOutboundMessageNodes() && !flowInfo.whatsappId && (
+                                <Typography className={classes.connectionStatus} style={{ color: '#d32f2f' }}>
+                                    Obrigatório para nós de envio (mensagem/menu/mídia).
+                                </Typography>
+                            )}
                         </div>
 
                         {!isChatOpen && aiEnabled && (

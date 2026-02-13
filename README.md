@@ -25,6 +25,8 @@ Construa chatbots ilimitados diretamente no Core.
 - **Simulador Integrado**: Teste seus fluxos em tempo real antes de publicar.
 - **Gatilhos Diversos**: Inicie fluxos por palavra-chave, tempo, mensagem ou Webhook.
 - **Nós Essenciais**: Envie áudios, vídeos, menus, faça perguntas e validações.
+- **Vínculo de Conexão Explícito**: Cada fluxo exibe claramente a conexão WhatsApp vinculada.
+- **Validação de Ativação**: Fluxos com nós de envio só ativam com conexão vinculada.
 
 ### 💰 **CRM Kanban**
 Gestão visual de vendas integrada ao chat.
