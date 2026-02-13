@@ -1,27 +1,31 @@
 # 🤖 Criando Fluxos (Flow Builder)
 
-O **Flow Builder** permite criar assistentes virtuais (chatbots) desenhando caixinhas na tela, sem precisar programar.
+O **Flow Builder** permite montar automações conversacionais com blocos visuais.
 
-## Conceitos Básicos
+## Blocos suportados atualmente
+- Gatilho/Início: `trigger`, `input`
+- Conversa: `message`, `menu`
+- Lógica: `switch`, `filter`
+- Dados/Integrações: `database`, `api`, `webhook`, `knowledge`
+- Operação: `ticket`, `pipeline`, `tag`, `helpdesk`
+- Finalização: `output`
 
-*   **Gatilho (Start)**: O que inicia o robô (ex: Uma palavra-chave "Menu" ou qualquer mensagem recebida "Boas Vindas").
-*   **Nós (Caixas)**: São as ações que o robô vai fazer.
-*   **Conexões (Linhas)**: A ordem das ações.
+## Fluxo mínimo recomendado
+1. Crie um fluxo em **Flow Builder**.
+2. Adicione: `trigger` → `message` → `output`.
+3. Configure o conteúdo do nó `message`.
+4. Salve.
+5. Se houver nós de envio (`message/menu`), vincule uma conexão WhatsApp antes de ativar.
+6. Teste em **Simular** antes de ativar em produção.
 
-## Principais Blocos
-1.  **Enviar Mensagem**: O robô manda um texto, imagem ou áudio.
-2.  **Menu de Opções**: O robô manda uma lista (1. Vendas, 2. Suporte). Dependendo do que o cliente responder, você puxa uma linha para caminhos diferentes.
-3.  **Transferir (Handover)**: Encerra o robô e joga o cliente para uma **Fila de Atendimento** humana.
+## Boas práticas
+- Sempre defina um caminho de saída/finalização.
+- Em `switch`, mantenha condições objetivas e testáveis.
+- Em `database`/`api`/`webhook`, nomeie variáveis de saída de forma clara.
+- Evite publicar sem smoke test em ambiente real.
 
-## Criando seu Primeiro Fluxo
-1.  Vá em **Flow Builder** > **Novo Fluxo**.
-2.  Dê um nome para o fluxo.
-3.  Arraste um bloco **Start** da esquerda.
-4.  Arraste um bloco **Content (Mensagem)**.
-5.  **Ligue os pontos**: Clique na bolinha azul do Start e arraste até a bolinha do Message.
-6.  Clique no bloco Message para digitar o texto (ex: "Olá! Como posso ajudar?").
-7.  Adicione um bloco de Opções ou Transferência para finalizar.
-8.  **Salve** o fluxo.
-
-> [!WARNING]
-> **Teste sempre!** Use seu próprio WhatsApp pessoal para testar o fluxo antes de ativar para todos os clientes.
+## Troubleshooting rápido
+- **Não ativa fluxo:** verifique vínculo de conexão WhatsApp quando houver envio de mensagens.
+- **Trigger não dispara:** revise tipo/condição do gatilho e se o fluxo está ativo.
+- **Menu não segue caminho:** valide `sourceHandle` nas conexões de opções.
+- **Dados não chegam no webhook/API:** valide JSON de headers/body e placeholders `{{variavel}}`.

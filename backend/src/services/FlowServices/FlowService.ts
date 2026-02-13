@@ -18,6 +18,36 @@ const hasOutboundMessageNodes = (nodes: any[] = []): boolean => {
     return nodes.some((node: any) => MESSAGE_NODE_TYPES.has(String(node?.type || "").toLowerCase()));
 };
 
+const buildTriggerFromNodes = (nodes: any[] = []): { type: string; condition: any } | null => {
+    const triggerNode = nodes.find((n: any) => ["trigger", "input", "start"].includes(String(n?.type || "").toLowerCase()));
+    const data = triggerNode?.data || {};
+
+    // Novo formato (UI atual)
+    if (data.triggerType === "keyword") {
+        const keyword = data.conditions?.[0]?.value || data.keyword || "";
+        return { type: "whatsapp_message", condition: keyword ? { body: keyword } : {} };
+    }
+
+    if (data.triggerType === "any" || data.triggerType === "firstContact" || data.triggerType === "message") {
+        return { type: "whatsapp_message", condition: {} };
+    }
+
+    if (data.triggerType === "tagAdded") {
+        const tagId = Number(data.tagId);
+        return { type: "tagAdded", condition: Number.isFinite(tagId) ? { tagId } : {} };
+    }
+
+    // Formato legado
+    if (data.trigger?.type) {
+        return {
+            type: data.trigger.type,
+            condition: data.trigger.condition || {}
+        };
+    }
+
+    return null;
+};
+
 const CreateFlowService = async ({
     name,
     nodes,
@@ -108,25 +138,30 @@ const UpdateFlowService = async ({
 
     await flow.update(flowData);
 
-    // Sync Triggers based on Start Node
+    // Sync trigger based on flow nodes (current + legacy formats)
     if (flowData.nodes) {
-        const startNode = (flowData.nodes as any[]).find((n: any) => n.type === "input");
-        if (startNode && startNode.data && startNode.data.trigger) {
-            const { type, condition } = startNode.data.trigger;
+        const triggerConfig = buildTriggerFromNodes(flowData.nodes as any[]);
+        const existingTrigger = await FlowTrigger.findOne({ where: { flowId: id } });
 
-            // Upsert Trigger
-            const existingTrigger = await FlowTrigger.findOne({ where: { flowId: id } });
+        if (triggerConfig) {
             if (existingTrigger) {
-                await existingTrigger.update({ type, condition, isActive: true });
+                await existingTrigger.update({
+                    type: triggerConfig.type,
+                    condition: triggerConfig.condition,
+                    isActive: true
+                });
             } else {
                 await FlowTrigger.create({
                     flowId: id,
-                    type,
-                    condition,
+                    type: triggerConfig.type,
+                    condition: triggerConfig.condition,
                     tenantId,
                     isActive: true
                 });
             }
+        } else if (existingTrigger) {
+            // Se removeu gatilho, desativa o registro para evitar disparos inesperados
+            await existingTrigger.update({ isActive: false, condition: {} });
         }
     }
 

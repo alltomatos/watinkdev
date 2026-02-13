@@ -175,10 +175,11 @@ class FlowExecutorService {
         case "default": // "Mensagem"
         case "message":
         case "textUpdater": // "Pergunta"
+        case "textupdater": // alias legado
           // Passar node.data para sendMessage processar contentType e variáveis
           await this.sendMessage(session, node.data.content || node.data.label || '', node.data);
 
-          if (node.type === "textUpdater" || node.data.waitForInput) {
+          if (node.type === "textUpdater" || node.type === "textupdater" || node.data.waitForInput) {
             return session; // Stop and wait for user reply
           } else {
             return this.proceedToNext(session, flow, node);
@@ -222,6 +223,10 @@ class FlowExecutorService {
 
         case "helpdesk":
           await this.processHelpdeskNode(session, node.data);
+          return this.proceedToNext(session, flow, node);
+
+        case "tag":
+          await this.processTagNode(session, node.data);
           return this.proceedToNext(session, flow, node);
 
         default:
@@ -365,41 +370,51 @@ class FlowExecutorService {
     const ticket = await ShowTicketService(context.ticketId);
     if (!ticket) return;
 
-    const options = nodeData.options || [];
-    const text = nodeData.label || "Escolha uma opção:";
+    const text = nodeData.menuTitle || nodeData.label || "Escolha uma opção:";
+    const menuType = nodeData.menuType || (nodeData.options?.length > 3 ? "list" : "buttons");
 
+    if (menuType === "list") {
+      const listConfig = nodeData.listConfig || {};
+      const sections = (listConfig.sections || []).map((section: any, sectionIndex: number) => ({
+        title: section?.title || `Seção ${sectionIndex + 1}`,
+        rows: (section?.rows || []).map((row: any, rowIndex: number) => ({
+          id: row?.id || `item_${sectionIndex + 1}_${rowIndex + 1}`,
+          title: row?.title || row?.label || `Item ${rowIndex + 1}`,
+          description: row?.description || ""
+        }))
+      })).filter((section: any) => section.rows.length > 0);
+
+      if (sections.length === 0) {
+        await this.sendMessage(session, text);
+        return;
+      }
+
+      await SendWhatsAppInteractive({
+        body: text,
+        ticket,
+        list: {
+          title: listConfig.title || "Opções",
+          buttonText: listConfig.buttonText || "Abrir Menu",
+          sections
+        }
+      });
+      return;
+    }
+
+    const options = (nodeData.options || []).slice(0, 3);
     if (options.length === 0) {
       await this.sendMessage(session, text);
       return;
     }
 
-    // Determine Buttons vs List
-    if (options.length <= 3) {
-      await SendWhatsAppInteractive({
-        body: text,
-        ticket,
-        buttons: options.map((o: any) => ({ label: o.label, id: o.id }))
-      });
-    } else {
-      await SendWhatsAppInteractive({
-        body: text,
-        ticket,
-        list: {
-          title: "Opções",
-          buttonText: "Abrir Menu",
-          sections: [
-            {
-              title: "Escolha uma opção",
-              rows: options.map((o: any) => ({
-                id: o.id,
-                title: o.label,
-                description: ""
-              }))
-            }
-          ]
-        }
-      });
-    }
+    await SendWhatsAppInteractive({
+      body: text,
+      ticket,
+      buttons: options.map((o: any, index: number) => ({
+        label: o.label,
+        id: o.id || `btn_${index + 1}`
+      }))
+    });
   }
 
   private async updateTicket(session: FlowSession, nodeData: any) {
@@ -407,11 +422,22 @@ class FlowExecutorService {
     if (!context.ticketId) return;
 
     const updateData: any = {};
+    const ticketAction = nodeData.ticketAction;
 
-    // Map nodeData fields to Ticket fields
-    if (nodeData.queueId) updateData.queueId = nodeData.queueId;
-    if (nodeData.status) updateData.status = nodeData.status; // open, pending, closed
-    // if (nodeData.userId) updateData.userId = nodeData.userId; 
+    // Compatibilidade com formato novo da UI (ticketAction) e legado (queueId/status/userId diretos)
+    if (ticketAction === 'moveToQueue') {
+      if (nodeData.queueId) updateData.queueId = nodeData.queueId;
+    } else if (ticketAction === 'assignUser') {
+      if (nodeData.userId) updateData.userId = nodeData.userId;
+    } else if (ticketAction === 'changeStatus') {
+      if (nodeData.newStatus) updateData.status = nodeData.newStatus;
+      else if (nodeData.status) updateData.status = nodeData.status;
+    } else {
+      if (nodeData.queueId) updateData.queueId = nodeData.queueId;
+      if (nodeData.userId) updateData.userId = nodeData.userId;
+      if (nodeData.newStatus) updateData.status = nodeData.newStatus;
+      else if (nodeData.status) updateData.status = nodeData.status;
+    }
 
     if (Object.keys(updateData).length > 0) {
       await UpdateTicketService({
@@ -1462,6 +1488,33 @@ class FlowExecutorService {
           action: "Consultar conhecimento (IA)",
           message: `Modo: ${node.data?.responseMode || 'auto'}`,
           wouldSend: true
+        };
+
+      case "ticket":
+        return {
+          action: `Atualizar ticket (${node.data?.ticketAction || 'legacy'})`,
+          message: `queueId=${node.data?.queueId || '-'} userId=${node.data?.userId || '-'} status=${node.data?.newStatus || node.data?.status || '-'}`,
+          wouldUpdate: true
+        };
+
+      case "webhook":
+        return {
+          action: `Enviar webhook ${node.data?.method || 'POST'}`,
+          message: node.data?.url || 'URL não configurada'
+        };
+
+      case "api":
+        return {
+          action: `Executar API ${node.data?.method || 'GET'}`,
+          message: node.data?.url || 'URL não configurada',
+          contextUpdate: node.data?.resultVariable ? { [node.data.resultVariable]: "[Resposta simulada API]" } : {}
+        };
+
+      case "tag":
+        return {
+          action: `${node.data?.tagAction === 'remove' ? 'Remover' : 'Adicionar'} tag`,
+          message: `tagId=${node.data?.tagId || 'não configurada'}`,
+          wouldUpdate: true
         };
 
       case "end":

@@ -47,6 +47,7 @@ import TicketNode from './CustomNodes/TicketNode';
 import WebhookNode from './CustomNodes/WebhookNode';
 import APINode from './CustomNodes/APINode';
 import HelpdeskNode from './CustomNodes/HelpdeskNode';
+import TagNode from './CustomNodes/TagNode';
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -233,7 +234,8 @@ const FlowBuilder = () => {
         database: DatabaseNode,
         filter: FilterNode,
         api: APINode,
-        helpdesk: HelpdeskNode
+        helpdesk: HelpdeskNode,
+        tag: TagNode
     }), []);
 
     const loadWhatsapps = async () => {
