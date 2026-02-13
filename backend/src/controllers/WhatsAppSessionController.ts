@@ -11,7 +11,7 @@ import { logger } from "../utils/logger";
 
 const store = async (req: Request, res: Response): Promise<Response> => {
   const { whatsappId } = req.params;
-  const { usePairingCode, phoneNumber } = req.body;
+  const { usePairingCode, phoneNumber, force } = req.body;
 
   try {
     console.log(`[DEBUG] WhatsAppSessionController.store called for whatsappId: ${whatsappId}`);
@@ -19,8 +19,9 @@ const store = async (req: Request, res: Response): Promise<Response> => {
     if (!whatsapp) {
       throw new AppError("ERR_NO_WAPP_FOUND", 404);
     }
-    const force = true;
-    await StartWhatsAppSession(whatsapp, usePairingCode, phoneNumber, force);
+    // Default must be non-forced start to preserve Redis auth state during QR refresh loops.
+    const shouldForce = force === true;
+    await StartWhatsAppSession(whatsapp, usePairingCode, phoneNumber, shouldForce);
   } catch (err) {
     const message = err.message || "Unknown error";
     console.error(`[DEBUG] CRITICAL ERROR in WhatsAppSessionController:`, err);
