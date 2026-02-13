@@ -1105,12 +1105,26 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
         return "other";
       };
 
+      const maskDeletedBy = (value) => {
+        if (!value) return null;
+        const digits = String(value).replace(/\D/g, "");
+        if (!digits) return null;
+        if (digits.length <= 4) return `****${digits}`;
+        return `****${digits.slice(-4)}`;
+      };
+
       const getDeletedBy = (message) => {
         let data = message.dataJson;
         if (typeof data === "string") {
           try { data = JSON.parse(data); } catch (e) { data = {}; }
         }
-        return data?.deletedBy;
+
+        if (data?.deletedByName) return data.deletedByName;
+
+        const contactName = message?.contact?.name?.trim();
+        if (contactName) return contactName;
+
+        return maskDeletedBy(data?.deletedBy);
       };
 
       const renderDeletedMessage = (message) => {

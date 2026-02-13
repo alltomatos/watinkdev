@@ -289,7 +289,9 @@ export interface ContactUpdatePayload {
 export interface MessageRevokePayload {
   sessionId: number;
   messageId: string;
-  participant?: string; // Quem deletou
+  participant?: string; // Quem deletou (JID)
+  participantName?: string; // Nome amigável quando disponível
+  pushName?: string; // Compatibilidade com payloads alternativos
 }
 
 export interface MarkAsReadPayload {

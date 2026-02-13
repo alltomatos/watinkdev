@@ -805,6 +805,38 @@ const handleMessageAck = async (payload: { messageId: string; ack: number; sessi
   }
 };
 
+const formatMaskedNumber = (jidOrNumber?: string | null): string | null => {
+  if (!jidOrNumber) return null;
+
+  const digits = String(jidOrNumber).replace(/\D/g, "");
+  if (!digits) return null;
+
+  if (digits.length <= 4) return `****${digits}`;
+  return `****${digits.slice(-4)}`;
+};
+
+const resolveDeletedByName = async (
+  participant?: string,
+  tenantId?: string | number,
+  explicitName?: string
+): Promise<string | null> => {
+  const trimmedExplicitName = explicitName?.trim();
+  if (trimmedExplicitName) return trimmedExplicitName;
+
+  if (!participant || !tenantId) return formatMaskedNumber(participant);
+
+  const participantNumber = participant.replace(/\D/g, "");
+  if (!participantNumber) return formatMaskedNumber(participant);
+
+  const participantContact = await Contact.findOne({
+    where: { tenantId, number: participantNumber }
+  });
+
+  if (participantContact?.name?.trim()) return participantContact.name.trim();
+
+  return formatMaskedNumber(participantNumber);
+};
+
 const handleMessageRevoke = async (payload: MessageRevokePayload, tenantId: string | number) => {
   try {
     const { messageId, sessionId, participant } = payload;
@@ -831,11 +863,18 @@ const handleMessageRevoke = async (payload: MessageRevokePayload, tenantId: stri
     // We preserve the original body in the DB, but frontend must know it's deleted.
     const currentDataJson = (message.dataJson as object) || {};
 
+    const deletedByName = await resolveDeletedByName(
+      participant,
+      tenantId,
+      payload.participantName || payload.pushName
+    );
+
     await message.update({
       isDeleted: true,
       dataJson: {
         ...currentDataJson,
-        deletedBy: participant
+        deletedBy: participant,
+        deletedByName
       }
     });
 
