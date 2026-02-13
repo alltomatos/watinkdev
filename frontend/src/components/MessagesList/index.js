@@ -215,24 +215,33 @@ const useStyles = makeStyles((theme) => ({
   messageBubbleActionButton: {
     display: "none",
     position: "absolute",
-    color: "#999",
+    color: "#667085",
     zIndex: 2,
-    opacity: "90%",
-    backgroundColor: "rgba(255,255,255,0.85)",
-    "&:hover, &.Mui-focusVisible": { backgroundColor: "rgba(255,255,255,0.95)" },
+    width: 22,
+    height: 22,
+    opacity: 0.92,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+    transition: "all .15s ease",
+    "&:hover, &.Mui-focusVisible": {
+      backgroundColor: "rgba(255,255,255,0.98)",
+      transform: "translateY(-1px)",
+    },
     [theme.breakpoints.down("sm")]: {
       display: "flex",
+      opacity: 0.78,
     },
   },
 
   messageActionsButton: {
-    top: -12,
-    right: -8,
+    top: 8,
+    right: -28,
   },
 
   messageReactionButton: {
-    top: -12,
-    right: 28,
+    top: 34,
+    right: -28,
   },
 
   messageContactName: {
@@ -319,18 +328,20 @@ const useStyles = makeStyles((theme) => ({
 
   messageReactions: {
     position: "absolute",
-    bottom: -10,
-    left: 10,
-    backgroundColor: "#fff",
-    borderRadius: "12px",
-    padding: "2px 6px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-    fontSize: "12px",
+    bottom: -14,
+    left: 12,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderRadius: "999px",
+    padding: "1px 7px",
+    boxShadow: "0 3px 8px rgba(0,0,0,0.12)",
+    fontSize: "11px",
+    lineHeight: 1.35,
     display: "flex",
     alignItems: "center",
+    gap: 4,
     zIndex: 20,
     cursor: "pointer",
-    border: "1px solid #e0e0e0",
+    border: "1px solid rgba(0,0,0,0.08)",
   },
 
   urlPreviewContainer: {
@@ -952,8 +963,8 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
         style={message.fromMe ? { left: "auto", right: 10 } : undefined}
       >
         {aggregated.map((reaction, index) => (
-          <span key={index} style={{ marginRight: 4 }}>
-            {reaction.emoji} {reaction.count > 1 ? reaction.count : ""}
+          <span key={index}>
+            {reaction.emoji}{reaction.count > 1 ? ` ${reaction.count}` : ""}
           </span>
         ))}
       </div>
@@ -1290,14 +1301,38 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
         transformOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={Boolean(reactionAnchorEl)}
         onClose={handleCloseReactionMenu}
+        PaperProps={{
+          style: {
+            borderRadius: 999,
+            padding: "4px 6px",
+            boxShadow: "0 10px 24px rgba(0,0,0,0.16)",
+          },
+        }}
+        MenuListProps={{
+          style: {
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            padding: 0,
+          },
+        }}
       >
         {QUICK_REACTIONS.map((emoji) => (
-          <MenuItem key={emoji} onClick={() => handleReactToMessage(emoji)}>
+          <MenuItem
+            key={emoji}
+            onClick={() => handleReactToMessage(emoji)}
+            style={{ minWidth: "unset", padding: "6px 7px", borderRadius: 10, fontSize: 20, lineHeight: 1 }}
+          >
             {emoji}
           </MenuItem>
         ))}
         {getMyReactionFromMessage(reactionTargetMessage) && (
-          <MenuItem onClick={() => handleReactToMessage(null)}>Remover reação</MenuItem>
+          <MenuItem
+            onClick={() => handleReactToMessage(null)}
+            style={{ minWidth: "unset", padding: "6px 8px", borderRadius: 10, fontSize: 12, color: "#667085" }}
+          >
+            Remover
+          </MenuItem>
         )}
       </Menu>
 
