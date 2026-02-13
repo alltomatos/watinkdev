@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useReducer, useRef } from "react";
+import React, { useState, useEffect, useReducer, useRef, useContext } from "react";
 
 import { isSameDay, parseISO, format } from "date-fns";
 import openSocket from "../../services/socket-io";
@@ -17,6 +17,8 @@ import {
   DialogActions,
   TextField,
   Tooltip,
+  Menu,
+  MenuItem,
 } from "@material-ui/core";
 import { Avatar } from "@material-ui/core";
 import { useTheme } from "@material-ui/core/styles";
@@ -30,6 +32,7 @@ import {
   GetApp,
   History as HistoryIcon,
   ErrorOutline,
+  EmojiEmotions,
 } from "@material-ui/icons";
 
 import MarkdownWrapper from "../MarkdownWrapper";
@@ -43,6 +46,7 @@ import whatsBackground from "../../assets/wa-background.png";
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
 import { useThemeContext } from "../../context/DarkMode";
+import { AuthContext } from "../../context/Auth/AuthContext";
 import Audio from "../Audio";
 import { getBackendUrl } from "../../helpers/urlUtils";
 import { toast } from "react-toastify";
@@ -88,11 +92,8 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "column",
     width: "fit-content",
     position: "relative",
-    "&:hover #messageActionsButton": {
+    "&:hover $messageBubbleActionButton, &:focus-within $messageBubbleActionButton": {
       display: "flex",
-      position: "absolute",
-      top: 0,
-      right: 0,
     },
 
     whiteSpace: "pre-wrap",
@@ -156,11 +157,8 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "column",
     width: "fit-content",
     position: "relative",
-    "&:hover #messageActionsButton": {
+    "&:hover $messageBubbleActionButton, &:focus-within $messageBubbleActionButton": {
       display: "flex",
-      position: "absolute",
-      top: 0,
-      right: 0,
     },
 
     whiteSpace: "pre-wrap",
@@ -214,14 +212,27 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "#ffffff",
   },
 
-  messageActionsButton: {
+  messageBubbleActionButton: {
     display: "none",
-    position: "relative",
+    position: "absolute",
     color: "#999",
-    zIndex: 1,
-    backgroundColor: "inherit",
+    zIndex: 2,
     opacity: "90%",
-    "&:hover, &.Mui-focusVisible": { backgroundColor: "inherit" },
+    backgroundColor: "rgba(255,255,255,0.85)",
+    "&:hover, &.Mui-focusVisible": { backgroundColor: "rgba(255,255,255,0.95)" },
+    [theme.breakpoints.down("sm")]: {
+      display: "flex",
+    },
+  },
+
+  messageActionsButton: {
+    top: -12,
+    right: -8,
+  },
+
+  messageReactionButton: {
+    top: -12,
+    right: 28,
   },
 
   messageContactName: {
@@ -432,10 +443,13 @@ const reducer = (state, action) => {
   }
 };
 
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
 const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
   const classes = useStyles();
   const muiTheme = useTheme();
   const { appTheme } = useThemeContext();
+  const { user } = useContext(AuthContext);
 
   const [messagesList, dispatch] = useReducer(reducer, []);
   const [pageNumber, setPageNumber] = useState(1);
@@ -446,6 +460,8 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
   const [selectedMessage, setSelectedMessage] = useState({});
   const [anchorEl, setAnchorEl] = useState(null);
   const messageOptionsMenuOpen = Boolean(anchorEl);
+  const [reactionAnchorEl, setReactionAnchorEl] = useState(null);
+  const [reactionTargetMessage, setReactionTargetMessage] = useState(null);
   const currentTicketId = useRef(ticketId);
   const shouldScrollRef = useRef();
   const messagesListRef = useRef();
@@ -561,6 +577,34 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
 
   const handleCloseMessageOptionsMenu = (e) => {
     setAnchorEl(null);
+  };
+
+  const handleOpenReactionMenu = (event, message) => {
+    setReactionAnchorEl(event.currentTarget);
+    setReactionTargetMessage(message);
+  };
+
+  const handleCloseReactionMenu = () => {
+    setReactionAnchorEl(null);
+    setReactionTargetMessage(null);
+  };
+
+  const handleReactToMessage = async (emoji) => {
+    if (!reactionTargetMessage?.id || reactionTargetMessage?.isDeleted) return;
+
+    try {
+      await api.patch(`/messages/${reactionTargetMessage.id}/reaction`, {
+        emoji,
+      });
+      handleCloseReactionMenu();
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
+  const getMyReactionFromMessage = (message) => {
+    if (!message?.reactions || !Array.isArray(message.reactions) || !user?.id) return null;
+    return message.reactions.find((reaction) => String(reaction?.userId) === String(user.id)) || null;
   };
 
   // Handler para buscar histórico de mensagens
@@ -872,6 +916,20 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
     );
   };
 
+  const renderReactionButton = (message) => {
+    if (message.isDeleted) return null;
+
+    return (
+      <IconButton
+        size="small"
+        className={clsx(classes.messageBubbleActionButton, classes.messageReactionButton)}
+        onClick={(e) => handleOpenReactionMenu(e, message)}
+      >
+        <EmojiEmotions fontSize="small" />
+      </IconButton>
+    );
+  };
+
   const renderMessageReactions = (message) => {
     if (!message.reactions || message.reactions.length === 0) return null;
 
@@ -889,7 +947,10 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
     }, []);
 
     return (
-      <div className={classes.messageReactions}>
+      <div
+        className={classes.messageReactions}
+        style={message.fromMe ? { left: "auto", right: 10 } : undefined}
+      >
         {aggregated.map((reaction, index) => (
           <span key={index} style={{ marginRight: 4 }}>
             {reaction.emoji} {reaction.count > 1 ? reaction.count : ""}
@@ -1128,12 +1189,12 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
                     maxWidth: (message.mediaUrl || message.mediaType === "image" || message.mediaType === "video" || message.mediaType === "location") ? 332 : 600,
                   }}
                 >
+                  {renderReactionButton(message)}
                   <IconButton
                     variant="contained"
                     size="small"
-                    id="messageActionsButton"
                     disabled={message.isDeleted}
-                    className={classes.messageActionsButton}
+                    className={clsx(classes.messageBubbleActionButton, classes.messageActionsButton)}
                     onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
                   >
                     <ExpandMore />
@@ -1175,12 +1236,12 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
                   maxWidth: (message.mediaUrl || message.mediaType === "image" || message.mediaType === "video" || message.mediaType === "location") ? 332 : 600,
                 }}
               >
+                {renderReactionButton(message)}
                 <IconButton
                   variant="contained"
                   size="small"
-                  id="messageActionsButton"
                   disabled={message.isDeleted}
-                  className={classes.messageActionsButton}
+                  className={clsx(classes.messageBubbleActionButton, classes.messageActionsButton)}
                   onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
                 >
                   <ExpandMore />
@@ -1222,7 +1283,23 @@ const MessagesList = ({ ticketId, isGroup, isWebchat }) => {
         handleClose={handleCloseMessageOptionsMenu}
       />
 
-
+      <Menu
+        anchorEl={reactionAnchorEl}
+        getContentAnchorEl={null}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "center" }}
+        open={Boolean(reactionAnchorEl)}
+        onClose={handleCloseReactionMenu}
+      >
+        {QUICK_REACTIONS.map((emoji) => (
+          <MenuItem key={emoji} onClick={() => handleReactToMessage(emoji)}>
+            {emoji}
+          </MenuItem>
+        ))}
+        {getMyReactionFromMessage(reactionTargetMessage) && (
+          <MenuItem onClick={() => handleReactToMessage(null)}>Remover reação</MenuItem>
+        )}
+      </Menu>
 
       {/* Modal de seleção de data para histórico */}
       <Dialog

@@ -157,6 +157,7 @@ messageRoutes.post(
  *       200:
  *         description: Mensagem removida
  */
+messageRoutes.patch("/messages/:messageId/reaction", isAuth, MessageController.upsertReaction);
 messageRoutes.delete("/messages/:messageId", isAuth, MessageController.remove);
 
 export default messageRoutes;

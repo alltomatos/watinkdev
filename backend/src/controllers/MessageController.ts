@@ -5,6 +5,7 @@ import { getIO } from "../libs/socket";
 import Message from "../models/Message";
 
 import ListMessagesService from "../services/MessageServices/ListMessagesService";
+import UpdateMessageReactionService from "../services/MessageServices/UpdateMessageReactionService";
 import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import DeleteWhatsAppMessage from "../services/WbotServices/DeleteWhatsAppMessage";
 import SendWhatsAppMedia from "../services/WbotServices/SendWhatsAppMedia";
@@ -19,6 +20,10 @@ type MessageData = {
   fromMe: boolean;
   read: boolean;
   quotedMsg?: Message;
+};
+
+type UpdateReactionData = {
+  emoji?: string | null;
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
@@ -80,4 +85,28 @@ export const remove = async (
   });
 
   return res.send();
+};
+
+export const upsertReaction = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { messageId } = req.params;
+  const { emoji }: UpdateReactionData = req.body;
+  const { id: userId, tenantId } = req.user;
+
+  const message = await UpdateMessageReactionService({
+    messageId,
+    userId,
+    tenantId,
+    emoji
+  });
+
+  const io = getIO();
+  io.to(message.ticketId.toString()).emit("appMessage", {
+    action: "update",
+    message
+  });
+
+  return res.status(200).json(message);
 };
