@@ -79,11 +79,22 @@ const UpdateFlowService = async ({
         throw new AppError("Flow not found", 404);
     }
 
+    const nextNodes = Array.isArray(flowData.nodes) ? (flowData.nodes as any[]) : (Array.isArray(flow.nodes) ? (flow.nodes as any[]) : []);
+    const nextWhatsappId = flowData.whatsappId !== undefined ? flowData.whatsappId : flow.whatsappId;
+
+    // Backend guard: fluxo ativo com nós de envio exige conexão vinculada mesmo em updates diretos via API
+    if (flow.isActive && hasOutboundMessageNodes(nextNodes) && !nextWhatsappId) {
+        throw new AppError(
+            "Este fluxo possui nós de envio de mensagem. Vincule uma conexão WhatsApp antes de salvar.",
+            400
+        );
+    }
+
     // Check if whatsappId is already in use (excluding current flow)
-    if (flowData.whatsappId) {
+    if (nextWhatsappId) {
         const flowExists = await Flow.findOne({
             where: {
-                whatsappId: flowData.whatsappId,
+                whatsappId: nextWhatsappId,
                 tenantId,
                 isActive: true,
                 id: { [Op.ne]: id }
