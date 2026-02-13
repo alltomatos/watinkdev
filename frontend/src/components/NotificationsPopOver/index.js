@@ -72,20 +72,27 @@ const useStyles = makeStyles(theme => ({
 		cursor: "pointer",
 		display: "flex",
 		alignItems: "center",
-		gap: 10,
-		padding: "8px 10px",
-		minWidth: 280,
-		maxWidth: 380,
-		borderRadius: 12,
+		gap: 12,
+		padding: "10px 12px",
+		minWidth: 300,
+		maxWidth: 400,
+		borderRadius: 16,
 		outline: "none",
+		borderLeft: `4px solid ${theme.palette.primary.main}`,
+		background: theme.palette.type === "dark"
+			? "linear-gradient(180deg, rgba(36,39,46,0.96), rgba(26,29,36,0.96))"
+			: "linear-gradient(180deg, #ffffff, #f4f7ff)",
 		"&:focus-visible": {
 			boxShadow: `0 0 0 2px ${theme.palette.primary.main}`,
 		},
+		"&:hover": {
+			transform: "translateY(-1px)",
+		},
 		[theme.breakpoints.down("xs")]: {
-			minWidth: 240,
-			maxWidth: "calc(100vw - 24px)",
-			padding: "8px",
-			gap: 8,
+			minWidth: 250,
+			maxWidth: "calc(100vw - 20px)",
+			padding: "9px 10px",
+			gap: 10,
 		},
 	},
 	toastAvatarWrap: {
@@ -93,9 +100,9 @@ const useStyles = makeStyles(theme => ({
 		flex: "none",
 	},
 	toastAvatar: {
-		width: 40,
-		height: 40,
-		boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+		width: 44,
+		height: 44,
+		boxShadow: "0 4px 12px rgba(0,0,0,0.22)",
 	},
 	toastDot: {
 		position: "absolute",
@@ -328,21 +335,19 @@ const NotificationsPopOver = () => {
 
 		toast(<NotificationToast ticket={ticket} message={message} contact={contact} history={historyRef.current} classes={classes} />, {
 			position: "top-right",
-			autoClose: 5000,
-			hideProgressBar: false,
+			autoClose: 5500,
+			hideProgressBar: true,
 			closeOnClick: true,
 			pauseOnHover: true,
 			draggable: true,
 			progress: undefined,
 			style: {
-				background: theme.palette.type === "dark"
-					? "linear-gradient(180deg, rgba(35,35,38,0.95), rgba(24,24,26,0.95))"
-					: "linear-gradient(180deg, #ffffff, #f8f9fb)",
+				background: "transparent",
 				color: theme.palette.text.primary,
-				borderRadius: 14,
-				padding: "4px 6px",
-				boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
-				border: theme.palette.type === "dark" ? `1px solid ${theme.palette.divider}` : "1px solid rgba(0,0,0,0.06)",
+				borderRadius: 16,
+				padding: 0,
+				boxShadow: "0 14px 32px rgba(0,0,0,0.20)",
+				border: "none",
 			}
 		});
 	};
