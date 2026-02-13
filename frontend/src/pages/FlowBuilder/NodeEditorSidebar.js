@@ -111,6 +111,8 @@ const TABLE_ALL_FIELDS = {
     Pipelines: ['id', 'name', 'createdAt']
 };
 
+const MAX_MENU_BUTTONS = 3;
+
 const NodeEditorSidebar = ({ open, node, onClose, onSave, onDelete }) => {
     const classes = useStyles();
     const [formData, setFormData] = React.useState({});
@@ -119,11 +121,13 @@ const NodeEditorSidebar = ({ open, node, onClose, onSave, onDelete }) => {
     const [users, setUsers] = React.useState([]);
     const [knowledgeBases, setKnowledgeBases] = React.useState([]);
     const [tags, setTags] = React.useState([]);
+    const [menuErrors, setMenuErrors] = React.useState([]);
 
     React.useEffect(() => {
         if (node && node.data) {
             setFormData({ ...node.data });
         }
+        setMenuErrors([]);
     }, [node]);
 
     React.useEffect(() => {
@@ -172,8 +176,107 @@ const NodeEditorSidebar = ({ open, node, onClose, onSave, onDelete }) => {
         }));
     };
 
+    const slugifyOptionId = (value, fallbackPrefix = 'opt') => {
+        const base = (value || '')
+            .toString()
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+
+        return base || `${fallbackPrefix}_${Date.now()}`;
+    };
+
+    const normalizeMenuData = (data) => {
+        if (node.type !== 'menu') return data;
+
+        const menuType = data.menuType || (data.options?.length > MAX_MENU_BUTTONS ? 'list' : 'buttons');
+        const nextData = { ...data, menuType };
+
+        if (menuType === 'buttons') {
+            const options = (data.options || [])
+                .map((opt, idx) => ({
+                    ...opt,
+                    label: (opt?.label || '').trim(),
+                    id: (opt?.id || '').trim() || slugifyOptionId(opt?.label, `btn_${idx + 1}`)
+                }))
+                .filter(opt => opt.label);
+
+            nextData.options = options;
+        }
+
+        if (menuType === 'list') {
+            const listConfig = data.listConfig || {};
+            const sections = (listConfig.sections || [])
+                .map((section, sectionIndex) => ({
+                    title: (section?.title || '').trim() || `Seção ${sectionIndex + 1}`,
+                    rows: (section?.rows || []).map((row, rowIndex) => ({
+                        id: (row?.id || '').trim() || slugifyOptionId(row?.title || row?.label, `item_${sectionIndex + 1}_${rowIndex + 1}`),
+                        title: (row?.title || row?.label || '').trim(),
+                        description: (row?.description || '').trim()
+                    })).filter(row => row.title)
+                }))
+                .filter(section => section.rows.length > 0);
+
+            nextData.listConfig = {
+                title: (listConfig.title || '').trim() || 'Opções',
+                buttonText: (listConfig.buttonText || '').trim() || 'Abrir Menu',
+                sections
+            };
+        }
+
+        return nextData;
+    };
+
+    const validateMenuData = (data) => {
+        const errors = [];
+        if (node.type !== 'menu') return errors;
+
+        const menuType = data.menuType || 'buttons';
+
+        if (menuType === 'buttons') {
+            const options = data.options || [];
+            if (options.length < 1) errors.push('Adicione pelo menos 1 botão.');
+            if (options.length > MAX_MENU_BUTTONS) {
+                errors.push(`WhatsApp permite no máximo ${MAX_MENU_BUTTONS} botões por mensagem.`);
+            }
+            if (options.some(opt => !(opt?.label || '').trim())) {
+                errors.push('Todo botão precisa de um rótulo (label).');
+            }
+        }
+
+        if (menuType === 'list') {
+            const sections = data.listConfig?.sections || [];
+            if (!(data.listConfig?.buttonText || '').trim()) {
+                errors.push('Informe o texto do botão da lista (ex.: "Ver opções").');
+            }
+            if (sections.length < 1) {
+                errors.push('A lista precisa de pelo menos 1 seção.');
+            }
+            if (sections.some(section => (section.rows || []).length < 1)) {
+                errors.push('Cada seção da lista precisa de pelo menos 1 item.');
+            }
+            if (sections.some(section => (section.rows || []).some(row => !(row?.title || row?.label || '').trim()))) {
+                errors.push('Todos os itens da lista precisam de título.');
+            }
+        }
+
+        return errors;
+    };
+
     const handleSave = () => {
-        onSave(node.id, formData);
+        const normalized = normalizeMenuData(formData);
+        const errors = validateMenuData(normalized);
+
+        if (errors.length > 0) {
+            setMenuErrors(errors);
+            return;
+        }
+
+        setMenuErrors([]);
+        onSave(node.id, normalized);
     };
 
     // Renderiza formulário específico por tipo
@@ -421,65 +524,235 @@ const NodeEditorSidebar = ({ open, node, onClose, onSave, onDelete }) => {
     );
 
     const renderMenuForm = () => {
-        const options = formData.options || [{ id: 'opt1', label: 'Opção 1' }];
+        const menuType = formData.menuType || 'buttons';
+        const options = formData.options || [{ id: '', label: '' }];
+        const listConfig = formData.listConfig || {
+            title: 'Opções',
+            buttonText: 'Abrir Menu',
+            sections: [{ title: 'Seção 1', rows: [{ id: '', title: '' }] }]
+        };
 
         const addOption = () => {
-            const newOptions = [...options, { id: `opt${Date.now()}`, label: `Opção ${options.length + 1}` }];
-            handleChange('options', newOptions);
+            if (options.length >= MAX_MENU_BUTTONS) return;
+            handleChange('options', [...options, { id: '', label: '' }]);
         };
 
-        const removeOption = (optId) => {
-            const newOptions = options.filter(o => o.id !== optId);
-            handleChange('options', newOptions);
+        const removeOption = (index) => {
+            handleChange('options', options.filter((_, idx) => idx !== index));
         };
 
-        const updateOption = (optId, newLabel) => {
-            const newOptions = options.map(o => o.id === optId ? { ...o, label: newLabel } : o);
-            handleChange('options', newOptions);
+        const updateOption = (index, key, value) => {
+            handleChange('options', options.map((opt, idx) => idx === index ? { ...opt, [key]: value } : opt));
+        };
+
+        const updateListConfig = (key, value) => {
+            handleChange('listConfig', { ...listConfig, [key]: value });
+        };
+
+        const addSection = () => {
+            updateListConfig('sections', [...(listConfig.sections || []), { title: '', rows: [{ id: '', title: '' }] }]);
+        };
+
+        const removeSection = (sectionIndex) => {
+            updateListConfig('sections', (listConfig.sections || []).filter((_, idx) => idx !== sectionIndex));
+        };
+
+        const updateSection = (sectionIndex, key, value) => {
+            updateListConfig('sections', (listConfig.sections || []).map((section, idx) => idx === sectionIndex ? { ...section, [key]: value } : section));
+        };
+
+        const addRow = (sectionIndex) => {
+            updateListConfig('sections', (listConfig.sections || []).map((section, idx) => {
+                if (idx !== sectionIndex) return section;
+                return { ...section, rows: [...(section.rows || []), { id: '', title: '', description: '' }] };
+            }));
+        };
+
+        const removeRow = (sectionIndex, rowIndex) => {
+            updateListConfig('sections', (listConfig.sections || []).map((section, idx) => {
+                if (idx !== sectionIndex) return section;
+                return { ...section, rows: (section.rows || []).filter((_, rIdx) => rIdx !== rowIndex) };
+            }));
+        };
+
+        const updateRow = (sectionIndex, rowIndex, key, value) => {
+            updateListConfig('sections', (listConfig.sections || []).map((section, idx) => {
+                if (idx !== sectionIndex) return section;
+                return {
+                    ...section,
+                    rows: (section.rows || []).map((row, rIdx) => rIdx === rowIndex ? { ...row, [key]: value } : row)
+                };
+            }));
         };
 
         return (
             <>
+                <Typography variant="body2" color="textSecondary" style={{ marginBottom: 12 }}>
+                    Envie menu interativo via WhatsApp. Escolha entre botões rápidos (até 3) ou lista com seções e itens.
+                </Typography>
+
                 <TextField
                     fullWidth
-                    label="Título do Menu"
+                    label="Mensagem principal"
                     variant="outlined"
                     size="small"
                     className={classes.field}
                     value={formData.menuTitle || ''}
                     onChange={(e) => handleChange('menuTitle', e.target.value)}
                     placeholder="Escolha uma opção:"
+                    helperText="Texto acima dos botões/lista."
                 />
 
-                <Typography variant="subtitle2" className={classes.section}>
-                    Opções do Menu
-                </Typography>
-                <List dense>
-                    {options.map((opt, index) => (
-                        <ListItem key={opt.id} className={classes.optionItem}>
-                            <TextField
-                                fullWidth
-                                size="small"
-                                value={opt.label}
-                                onChange={(e) => updateOption(opt.id, e.target.value)}
-                                variant="standard"
-                            />
-                            <ListItemSecondaryAction>
-                                <IconButton edge="end" size="small" onClick={() => removeOption(opt.id)}>
-                                    <DeleteIcon fontSize="small" />
-                                </IconButton>
-                            </ListItemSecondaryAction>
-                        </ListItem>
-                    ))}
-                </List>
-                <Button
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={addOption}
-                    className={classes.addButton}
-                >
-                    Adicionar Opção
-                </Button>
+                <FormControl fullWidth className={classes.field} variant="outlined" size="small">
+                    <InputLabel>Tipo de Menu</InputLabel>
+                    <Select
+                        value={menuType}
+                        onChange={(e) => handleChange('menuType', e.target.value)}
+                        label="Tipo de Menu"
+                    >
+                        <MenuItem value="buttons">Botões rápidos (até 3)</MenuItem>
+                        <MenuItem value="list">Lista (com seções e itens)</MenuItem>
+                    </Select>
+                </FormControl>
+
+                {menuType === 'buttons' && (
+                    <>
+                        <Typography variant="subtitle2" className={classes.sectionTitle}>
+                            Botões ({options.length}/{MAX_MENU_BUTTONS})
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary" style={{ display: 'block', marginBottom: 8 }}>
+                            Cada botão precisa de texto (label). O ID pode ser informado manualmente ou gerado automaticamente ao salvar.
+                        </Typography>
+
+                        {options.map((opt, index) => (
+                            <Box key={`btn-${index}`} className={classes.optionItem} style={{ padding: 8 }}>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    label={`Label do botão ${index + 1}`}
+                                    value={opt.label || ''}
+                                    onChange={(e) => updateOption(index, 'label', e.target.value)}
+                                    variant="outlined"
+                                    style={{ marginBottom: 8 }}
+                                />
+                                <Box style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="ID (opcional)"
+                                        value={opt.id || ''}
+                                        onChange={(e) => updateOption(index, 'id', e.target.value)}
+                                        variant="outlined"
+                                        placeholder="ex: financeiro"
+                                    />
+                                    <IconButton size="small" onClick={() => removeOption(index)}>
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </Box>
+                            </Box>
+                        ))}
+
+                        <Button
+                            size="small"
+                            startIcon={<AddIcon />}
+                            onClick={addOption}
+                            className={classes.addButton}
+                            disabled={options.length >= MAX_MENU_BUTTONS}
+                        >
+                            Adicionar botão
+                        </Button>
+                    </>
+                )}
+
+                {menuType === 'list' && (
+                    <>
+                        <Typography variant="subtitle2" className={classes.sectionTitle}>Configuração da lista</Typography>
+                        <TextField
+                            fullWidth
+                            label="Título da lista"
+                            variant="outlined"
+                            size="small"
+                            className={classes.field}
+                            value={listConfig.title || ''}
+                            onChange={(e) => updateListConfig('title', e.target.value)}
+                            placeholder="Opções"
+                        />
+
+                        <TextField
+                            fullWidth
+                            label="Texto do botão"
+                            variant="outlined"
+                            size="small"
+                            className={classes.field}
+                            value={listConfig.buttonText || ''}
+                            onChange={(e) => updateListConfig('buttonText', e.target.value)}
+                            placeholder="Abrir Menu"
+                            helperText="Texto exibido no botão que abre a lista"
+                        />
+
+                        {(listConfig.sections || []).map((section, sectionIndex) => (
+                            <Box key={`section-${sectionIndex}`} className={classes.optionItem} style={{ padding: 10 }}>
+                                <Box style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        label={`Seção ${sectionIndex + 1}`}
+                                        variant="outlined"
+                                        value={section.title || ''}
+                                        onChange={(e) => updateSection(sectionIndex, 'title', e.target.value)}
+                                    />
+                                    <IconButton size="small" onClick={() => removeSection(sectionIndex)}>
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </Box>
+
+                                {(section.rows || []).map((row, rowIndex) => (
+                                    <Box key={`row-${sectionIndex}-${rowIndex}`} style={{ marginBottom: 8, borderTop: '1px solid #e0e0e0', paddingTop: 8 }}>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            label={`Item ${rowIndex + 1} - título`}
+                                            variant="outlined"
+                                            value={row.title || ''}
+                                            onChange={(e) => updateRow(sectionIndex, rowIndex, 'title', e.target.value)}
+                                            style={{ marginBottom: 8 }}
+                                        />
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            label="ID (opcional)"
+                                            variant="outlined"
+                                            value={row.id || ''}
+                                            onChange={(e) => updateRow(sectionIndex, rowIndex, 'id', e.target.value)}
+                                            style={{ marginBottom: 8 }}
+                                        />
+                                        <Box style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <TextField
+                                                fullWidth
+                                                size="small"
+                                                label="Descrição (opcional)"
+                                                variant="outlined"
+                                                value={row.description || ''}
+                                                onChange={(e) => updateRow(sectionIndex, rowIndex, 'description', e.target.value)}
+                                            />
+                                            <IconButton size="small" onClick={() => removeRow(sectionIndex, rowIndex)}>
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                        </Box>
+                                    </Box>
+                                ))}
+
+                                <Button size="small" startIcon={<AddIcon />} onClick={() => addRow(sectionIndex)}>
+                                    Adicionar item
+                                </Button>
+                            </Box>
+                        ))}
+
+                        <Button size="small" startIcon={<AddIcon />} onClick={addSection} className={classes.addButton}>
+                            Adicionar seção
+                        </Button>
+                    </>
+                )}
             </>
         );
     };
@@ -1375,6 +1648,21 @@ const NodeEditorSidebar = ({ open, node, onClose, onSave, onDelete }) => {
             />
 
             {renderForm()}
+
+            {menuErrors.length > 0 && (
+                <Box style={{ marginTop: 12, padding: 10, border: '1px solid #f44336', borderRadius: 6, background: '#ffebee' }}>
+                    <Typography variant="subtitle2" style={{ color: '#c62828', marginBottom: 6 }}>
+                        Revise a configuração do menu:
+                    </Typography>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {menuErrors.map((err, idx) => (
+                            <li key={`${err}-${idx}`}>
+                                <Typography variant="body2" style={{ color: '#c62828' }}>{err}</Typography>
+                            </li>
+                        ))}
+                    </ul>
+                </Box>
+            )}
 
             <Button
                 variant="contained"
