@@ -24,16 +24,27 @@ import { AuthContext } from "../../context/Auth/AuthContext";
 const useStyles = makeStyles(theme => ({
 	tabContainer: {
 		overflowY: "auto",
-		maxHeight: 350,
+		maxHeight: 420,
+		padding: theme.spacing(0.5),
 		...theme.scrollbarStyles,
 	},
 	popoverPaper: {
 		width: "100%",
-		maxWidth: 350,
+		maxWidth: 380,
 		marginLeft: theme.spacing(2),
 		marginRight: theme.spacing(1),
+		marginTop: theme.spacing(0.5),
+		borderRadius: 14,
+		border: `1px solid ${theme.palette.divider}`,
+		boxShadow: theme.palette.type === "dark"
+			? "0 14px 34px rgba(0,0,0,0.45)"
+			: "0 14px 34px rgba(15,23,42,0.14)",
+		backgroundColor: theme.palette.background.paper,
 		[theme.breakpoints.down("sm")]: {
-			maxWidth: 270,
+			maxWidth: "calc(100vw - 16px)",
+			marginLeft: theme.spacing(1),
+			marginRight: theme.spacing(1),
+			borderRadius: 12,
 		},
 	},
 	noShadow: {
@@ -42,73 +53,137 @@ const useStyles = makeStyles(theme => ({
 	iconButton: {
 		color: theme.palette.text.primary,
 	},
+	notificationTicket: {
+		display: "block",
+		width: "100%",
+		borderRadius: 10,
+		overflow: "hidden",
+		"& .MuiListItem-root": {
+			borderRadius: 10,
+		},
+		"& .MuiListItem-button:hover": {
+			backgroundColor: theme.palette.action.hover,
+		},
+		"& .MuiListItem-button:focus-visible": {
+			boxShadow: `inset 0 0 0 2px ${theme.palette.primary.main}`,
+		},
+	},
+	toastCard: {
+		cursor: "pointer",
+		display: "flex",
+		alignItems: "center",
+		gap: 10,
+		padding: "8px 10px",
+		minWidth: 280,
+		maxWidth: 380,
+		borderRadius: 12,
+		outline: "none",
+		"&:focus-visible": {
+			boxShadow: `0 0 0 2px ${theme.palette.primary.main}`,
+		},
+		[theme.breakpoints.down("xs")]: {
+			minWidth: 240,
+			maxWidth: "calc(100vw - 24px)",
+			padding: "8px",
+			gap: 8,
+		},
+	},
+	toastAvatarWrap: {
+		position: "relative",
+		flex: "none",
+	},
+	toastAvatar: {
+		width: 40,
+		height: 40,
+		boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+	},
+	toastDot: {
+		position: "absolute",
+		right: -2,
+		top: -1,
+		width: 10,
+		height: 10,
+		borderRadius: "50%",
+		background: theme.palette.error.main,
+		border: `2px solid ${theme.palette.background.paper}`,
+	},
+	toastContent: {
+		display: "flex",
+		flexDirection: "column",
+		minWidth: 0,
+		flex: 1,
+	},
+	toastHeader: {
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "space-between",
+		gap: 8,
+		marginBottom: 2,
+	},
+	toastTitle: {
+		fontWeight: 700,
+		lineHeight: 1.2,
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap",
+	},
+	toastTime: {
+		color: theme.palette.text.secondary,
+		whiteSpace: "nowrap",
+		fontWeight: 500,
+		fontSize: 11,
+	},
+	toastMessage: {
+		color: theme.palette.text.secondary,
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		display: "-webkit-box",
+		WebkitLineClamp: 2,
+		WebkitBoxOrient: "vertical",
+		lineHeight: "1.3em",
+	},
 }));
 
-const NotificationToast = ({ ticket, message, contact, history }) => {
+const NotificationToast = ({ ticket, message, contact, history, classes }) => {
 	const handleToastClick = () => {
 		history.push(`/tickets/${ticket.id}`);
 		window.focus();
 	};
 
+	const timeLabel = message?.createdAt
+		? format(new Date(message.createdAt), "HH:mm")
+		: format(new Date(), "HH:mm");
+
 	return (
 		<Box
 			onClick={handleToastClick}
-			style={{
-				cursor: "pointer",
-				display: "flex",
-				alignItems: "center",
-				gap: 12,
-				padding: "6px 8px",
-				minWidth: 280,
-				maxWidth: 360,
+			onKeyDown={e => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					handleToastClick();
+				}
 			}}
+			role="button"
+			tabIndex={0}
+			aria-label={`Abrir conversa com ${contact.name || "contato"}`}
+			className={classes.toastCard}
 		>
-			<Box style={{ position: "relative" }}>
-				<Avatar
-					src={contact.profilePicUrl}
-					alt={contact.name}
-					style={{ width: 42, height: 42, boxShadow: "0 2px 8px rgba(0,0,0,0.18)" }}
-				/>
-				<Box
-					style={{
-						position: "absolute",
-						right: -2,
-						top: -2,
-						width: 10,
-						height: 10,
-						borderRadius: "50%",
-						background: "#ff2d55",
-						border: "2px solid #fff",
-					}}
-				/>
+			<Box className={classes.toastAvatarWrap}>
+				<Avatar src={contact.profilePicUrl} alt={contact.name} className={classes.toastAvatar} />
+				<Box className={classes.toastDot} />
 			</Box>
 
-			<Box display="flex" flexDirection="column" style={{ minWidth: 0, flex: 1 }}>
-				<Box display="flex" alignItems="center" justifyContent="space-between" style={{ gap: 8 }}>
-					<Typography
-						variant="body1"
-						style={{ fontWeight: 700, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-					>
+			<Box className={classes.toastContent}>
+				<Box className={classes.toastHeader}>
+					<Typography variant="body1" className={classes.toastTitle}>
 						{contact.name || "Contato"}
 					</Typography>
-					<Typography variant="caption" style={{ color: "#8e8e93", whiteSpace: "nowrap" }}>
-						agora
+					<Typography variant="caption" className={classes.toastTime}>
+						{timeLabel}
 					</Typography>
 				</Box>
 
-				<Typography
-					variant="body2"
-					color="textSecondary"
-					style={{
-						overflow: "hidden",
-						textOverflow: "ellipsis",
-						display: "-webkit-box",
-						WebkitLineClamp: 2,
-						WebkitBoxOrient: "vertical",
-						lineHeight: "1.25em",
-						marginTop: 2,
-					}}
-				>
+				<Typography variant="body2" className={classes.toastMessage}>
 					{message.body}
 				</Typography>
 			</Box>
@@ -251,7 +326,7 @@ const NotificationsPopOver = () => {
 
 		soundAlertRef.current();
 
-		toast(<NotificationToast ticket={ticket} message={message} contact={contact} history={historyRef.current} />, {
+		toast(<NotificationToast ticket={ticket} message={message} contact={contact} history={historyRef.current} classes={classes} />, {
 			position: "top-right",
 			autoClose: 5000,
 			hideProgressBar: false,
@@ -281,7 +356,11 @@ const NotificationsPopOver = () => {
 	};
 
 	const NotificationTicket = ({ children }) => {
-		return <div onClick={handleClickAway}>{children}</div>;
+		return (
+			<Box onClick={handleClickAway} className={classes.notificationTicket}>
+				{children}
+			</Box>
+		);
 	};
 
 	return (
