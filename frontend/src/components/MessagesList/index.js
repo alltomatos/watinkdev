@@ -235,13 +235,13 @@ const useStyles = makeStyles((theme) => ({
   },
 
   messageActionsButton: {
-    top: 8,
-    right: -28,
+    top: 6,
+    right: 6,
   },
 
   messageReactionButton: {
-    top: 34,
-    right: -28,
+    top: 30,
+    right: 6,
   },
 
   messageContactName: {
