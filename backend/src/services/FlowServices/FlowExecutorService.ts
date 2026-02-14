@@ -6,6 +6,7 @@ import { logger } from "../../utils/logger";
 import SendWhatsAppMessage from "../WbotServices/SendWhatsAppMessage";
 import SendWhatsAppInteractive from "../WbotServices/SendWhatsAppInteractive";
 import SendWhatsAppMedia from "../WbotServices/SendWhatsAppMedia";
+import SendWhatsAppCarousel from "../WbotServices/SendWhatsAppCarousel";
 import fs from "fs";
 import path from "path";
 import uploadConfig from "../../config/upload";
@@ -188,6 +189,10 @@ class FlowExecutorService {
         case "menu":
           await this.sendMenu(session, node.data);
           return session; // Stop and wait for user reply
+
+        case "carousel":
+          await this.sendCarouselNode(session, node.data);
+          return this.proceedToNext(session, flow, node);
 
         case "knowledge":
           // Integração com RAG (VectorService)
@@ -414,6 +419,40 @@ class FlowExecutorService {
         label: o.label,
         id: o.id || `btn_${index + 1}`
       }))
+    });
+  }
+
+  private async sendCarouselNode(session: FlowSession, nodeData: any) {
+    const context = session.context as FlowContext;
+    if (!context.ticketId) return;
+    const ticket = await ShowTicketService(context.ticketId);
+    if (!ticket) return;
+
+    const cards = (nodeData.cards || [])
+      .map((c: any, index: number) => ({
+        title: c?.title || c?.header?.title || `Card ${index + 1}`,
+        subtitle: c?.subtitle || c?.header?.subtitle || "",
+        headerUrl: c?.headerUrl || c?.header?.imageUrl || "",
+        body: c?.body || "",
+        footer: c?.footer || "",
+        buttons: (c?.buttons || []).map((b: any, idx: number) => ({
+          type: b?.type === "url" ? "url" : "reply",
+          text: b?.text || b?.displayText || `Opção ${idx + 1}`,
+          url: b?.url,
+          buttonId: b?.buttonId || b?.id || `card_${index + 1}_btn_${idx + 1}`
+        }))
+      }))
+      .filter((c: any) => c.body || c.title);
+
+    if (cards.length === 0) {
+      await this.sendMessage(session, nodeData.text || "Carrossel sem conteúdo configurado.");
+      return;
+    }
+
+    await SendWhatsAppCarousel({
+      ticket,
+      body: nodeData.text || "Carrossel",
+      cards
     });
   }
 
