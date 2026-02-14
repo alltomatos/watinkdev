@@ -65,6 +65,12 @@ Comece agora com nossos guias oficiais:
 
 👉 **[Acesse a Documentação Completa](userguide/README.md)**
 
+### Deploy em produção (Traefik-first)
+- Guia rápido: `docs/infra/TRAEFIK_FIRST_DEPLOY.md`
+- Scripts de bootstrap:
+  - Linux/macOS: `./setupwatink.sh` (ou `./setupwatink.sh swarm`)
+  - Windows: `start.bat` (ou `start.bat swarm`)
+
 ### Novidades (MVP Ronaldo)
 - Início manual de fluxo dentro do ticket/chat.
 - Respostas rápidas com tipos `text`, `buttons`, `list` e `carousel`.
