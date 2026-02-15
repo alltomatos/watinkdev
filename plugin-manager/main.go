@@ -44,11 +44,11 @@ type LicenseCheckRequest struct {
 	InstanceUuid string `json:"instanceUuid"`
 }
 
-// Global Config
-var (
-	SupabaseURL    = os.Getenv("SUPABASE_URL")
-	SupabaseAnonKey = os.Getenv("SUPABASE_ANON_KEY")
-	InstanceFile   = ".instance_id"
+// Global Config (Hardcoded for Security)
+const (
+	SupabaseURL     = "https://quxtkdxrafulqibwbqld.supabase.co"
+	SupabaseAnonKey  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1eHRrZHhyYWZ1bHFpYndicWxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwODkwNDEsImV4cCI6MjA4NjY2NTA0MX0.cg2YNyUB47yRW7g4pUBAHNF4SUt479savrmkVajYvD4"
+	InstanceFile    = ".instance_id"
 )
 
 func getInstanceID() string {
@@ -65,10 +65,6 @@ func getInstanceID() string {
 }
 
 func getActivePluginsFromSupabase(instanceID string) ([]string, error) {
-	if SupabaseURL == "" {
-		return []string{}, fmt.Errorf("SUPABASE_URL not set")
-	}
-
 	url := fmt.Sprintf("%s/functions/v1/validate-license", SupabaseURL)
 	
 	reqBody, _ := json.Marshal(LicenseCheckRequest{InstanceUuid: instanceID})
