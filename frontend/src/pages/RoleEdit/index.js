@@ -121,7 +121,7 @@ const RoleSchema = Yup.object().shape({
         .max(50, "Nome muito longo!")
         .required("Nome é obrigatório"),
     description: Yup.string()
-        .max(100, "Descrição muito longa!"),
+        .max(255, "Descrição muito longa!"),
 });
 
 const RoleEdit = () => {
@@ -159,7 +159,7 @@ const RoleEdit = () => {
                 }
             } catch (err) {
                 toastError(err);
-                // history.push("/roles"); // Commented out until Roles list is implemented
+                history.push("/roles"); 
             } finally {
                 setLoading(false);
             }
@@ -179,12 +179,12 @@ const RoleEdit = () => {
 
             if (isNew) {
                 await api.post("/roles", roleData);
-                toast.success(i18n.t("role.success")); // Ensure translation exists or use default string
+                toast.success(i18n.t("role.success")); 
             } else {
                 await api.put(`/roles/${roleId}`, roleData);
                 toast.success(i18n.t("role.success"));
             }
-            // history.push("/roles"); // Commented out until Roles list is implemented
+            history.push("/roles"); 
         } catch (err) {
             toastError(err);
         } finally {
