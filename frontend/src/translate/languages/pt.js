@@ -106,7 +106,7 @@ const messages = {
             "Tem certeza? Você precisará ler o QR Code novamente.",
         },
         buttons: {
-          add: "Adicionar Whaileys",
+          add: "Adicionar WhatsApp",
           addWhatsmeow: "Adicionar WhatsMeow",
           disconnect: "desconectar",
           tryAgain: "Tentar novamente",

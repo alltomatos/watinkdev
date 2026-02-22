@@ -24,6 +24,8 @@ import Tenant from "./Tenant";
 import Group from "./Group";
 import Permission from "./Permission";
 import UserPermission from "./UserPermission";
+import Role from "./Role";
+import UserRole from "./UserRole";
 
 @Table
 class User extends Model<User> {
@@ -87,6 +89,9 @@ class User extends Model<User> {
 
   @Column(DataType.JSON)
   configs: any;
+
+  @BelongsToMany(() => Role, () => UserRole)
+  roles: Role[];
 
   @BelongsToMany(() => Permission, () => UserPermission)
   permissions: Permission[];

@@ -14,26 +14,26 @@ Concluir a paridade funcional, estrutural e de segurança entre `backend-standar
 ## Checklist de Fechamento (ordem recomendada)
 
 ### 1) Paridade de autorização (RBAC) no Standard
-- [ ] Mapear todos os middlewares/guards que ainda usam `GroupPermission`
-- [ ] Migrar para `Roles + RolePermissions + Scopes` em 100% das rotas protegidas
-- [ ] Garantir compatibilidade com `tenantId` em todas as verificações
+- [x] Mapear todos os middlewares/guards que ainda usam `GroupPermission` ✅
+- [x] Migrar para `Roles + RolePermissions + Scopes` em 100% das rotas protegidas ✅
+- [x] Garantir compatibilidade com `tenantId` em todas as verificações ✅
 - [ ] Adicionar testes de autorização por perfil e por escopo (fila/tenant)
 
 ### 2) Paridade de estrutura de banco
-- [ ] Listar tabelas exclusivas do `opencore` e classificar: manter, migrar, deprecar
-- [ ] Listar tabelas exclusivas do `business` e classificar: manter, migrar, deprecar
+- [x] Listar tabelas exclusivas do `opencore` e classificar: manter, migrar, deprecar ✅
+- [x] Listar tabelas exclusivas do `business` e classificar: manter, migrar, deprecar ✅
 - [ ] Definir padrão único de naming para tabelas de junção (snake_case ou PascalCase)
 - [ ] Criar plano de migração sem downtime para renomeações
 
 ### 3) Paridade de plugins e módulos
-- [ ] Validar módulo de Protocolos (attachments/histories) no Go
+- [x] Validar módulo de Protocolos (attachments/histories) no Go ✅
 - [ ] Validar módulo de Clientes no Go vs Standard
 - [ ] Validar fluxos de install/seed de plugins em ambos
 
 ### 4) Paridade de IA e conhecimento
-- [ ] Confirmar pipelines de geração/consulta de embeddings no Go
+- [x] Confirmar pipelines de geração/consulta de embeddings no Go ✅
 - [ ] Garantir índices e performance de busca vetorial equivalentes
-- [ ] Validar isolamento de embeddings por tenant com RLS
+- [x] Validar isolamento de embeddings por tenant com RLS ✅
 
 ### 5) Paridade de seeds e dados iniciais
 - [ ] Normalizar comportamento de seeds em ambiente limpo (incluindo admin bootstrap)
