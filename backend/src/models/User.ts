@@ -85,6 +85,9 @@ class User extends Model<User> {
   @BelongsTo(() => Group)
   group: Group;
 
+  @Column(DataType.JSON)
+  configs: any;
+
   @BelongsToMany(() => Permission, () => UserPermission)
   permissions: Permission[];
 
