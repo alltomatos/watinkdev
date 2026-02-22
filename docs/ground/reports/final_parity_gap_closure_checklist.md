@@ -22,8 +22,9 @@ Concluir a paridade funcional, estrutural e de segurança entre `backend-standar
 ### 2) Paridade de estrutura de banco
 - [x] Listar tabelas exclusivas do `opencore` e classificar: manter, migrar, deprecar ✅
 - [x] Listar tabelas exclusivas do `business` e classificar: manter, migrar, deprecar ✅
-- [ ] Definir padrão único de naming para tabelas de junção (snake_case ou PascalCase)
-- [ ] Criar plano de migração sem downtime para renomeações
+- [x] Definir padrão único de naming para tabelas de junção (PascalCase) ✅
+- [x] Criar relatório de alinhamento para o time de Frontend ✅
+- [ ] Criar plano de migração sem downtime para renomeações na branch principal
 
 ### 3) Paridade de plugins e módulos
 - [x] Validar módulo de Protocolos (attachments/histories) no Go ✅
