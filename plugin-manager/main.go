@@ -51,12 +51,21 @@ type CreateCheckoutResponse struct {
 
 // Global Config
 const (
-	HubURL            = "http://localhost:8090/api/v1/hub"
+	DefaultHubURL     = "http://localhost:8090/api/v1/hub"
 	InstanceFile      = ".instance_id"
 	TenantPluginsFile = ".tenant_plugins.json"
 	LicenseStatusFile = ".license_status.json"
 	CoreVersion       = "2.0.0-business"
 )
+
+// hubURL returns the Hub URL, preferring the HUB_URL env var
+// (set to "http://marketplace-hub:8090/api/v1/hub" in Docker).
+func hubURL() string {
+	if url := os.Getenv("HUB_URL"); url != "" {
+		return url
+	}
+	return DefaultHubURL
+}
 
 var (
 	tenantPluginsMu sync.Mutex
@@ -93,7 +102,7 @@ func readLicenseStatus() licenseStatusStore {
 }
 
 func writeLicenseStatus(store licenseStatusStore) error {
-	payload, _ := json.MarshalIndent(store, "", "  ")
+	payload, _ := json.MarshalIndent(store, "", " ")
 	return os.WriteFile(LicenseStatusFile, payload, 0644)
 }
 
@@ -115,7 +124,7 @@ func StartHeartbeat(instanceID string) {
 				"instanceId": instanceID,
 				"version":    CoreVersion,
 			})
-			resp, err := http.Post(HubURL+"/heartbeat", "application/json", bytes.NewBuffer(payload))
+			resp, err := http.Post(hubURL()+"/heartbeat", "application/json", bytes.NewBuffer(payload))
 			if err == nil {
 				defer resp.Body.Close()
 				var hubResp struct {
@@ -126,10 +135,10 @@ func StartHeartbeat(instanceID string) {
 					licenseStatusMu.Lock()
 					writeLicenseStatus(hubResp.Licenses)
 					licenseStatusMu.Unlock()
-					log.Printf("💓 Heartbeat OK. Syncing %d license statuses.", len(hubResp.Licenses))
+					log.Printf("Heartbeat OK. Syncing %d license statuses.", len(hubResp.Licenses))
 				}
 			} else {
-				log.Printf("⚠️ Hub heartbeat failed: %v", err)
+				log.Printf("Hub heartbeat failed: %v", err)
 			}
 			time.Sleep(15 * time.Minute)
 		}
@@ -143,7 +152,7 @@ func main() {
 	}
 
 	instanceID := getInstanceID()
-	log.Printf("🦞 Local Plugin Manager starting with ID: %s", instanceID)
+	log.Printf("Local Plugin Manager starting with ID: %s", instanceID)
 
 	// Inicia telemetria business
 	StartHeartbeat(instanceID)
@@ -152,7 +161,7 @@ func main() {
 
 	// 1. Proxy Catalog from Hub
 	r.HandleFunc("/api/v1/plugins/catalog", func(w http.ResponseWriter, r *http.Request) {
-		resp, err := http.Get(HubURL + "/catalog")
+		resp, err := http.Get(hubURL() + "/catalog")
 		if err != nil {
 			json.NewEncoder(w).Encode(CatalogResponse{Offline: true, Plugins: []HubPlugin{}})
 			return
@@ -189,7 +198,7 @@ func main() {
 			Slug:       req.Slug,
 			InstanceID: instanceID,
 		})
-		resp, err := http.Post(HubURL+"/checkout", "application/json", bytes.NewBuffer(payload))
+		resp, err := http.Post(hubURL()+"/checkout", "application/json", bytes.NewBuffer(payload))
 		if err != nil {
 			http.Error(w, "Hub unavailable", 502)
 			return
@@ -206,6 +215,6 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"instanceId": instanceID})
 	}).Methods("GET")
 
-	log.Printf("🚀 Local Plugin Manager running on port %s", port)
+	log.Printf("Local Plugin Manager running on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }
