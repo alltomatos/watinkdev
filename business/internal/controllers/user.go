@@ -1,22 +1,24 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
-	"github.com/alltomatos/watinkdev/business/internal/database"
+	"github.com/alltomatos/watinkdev/business/internal/domain"
 	"github.com/alltomatos/watinkdev/business/internal/models"
 	"github.com/alltomatos/watinkdev/business/internal/services"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 func ListUsers(c *gin.Context) {
-	tenantID, _ := c.Get("tenantId")
-	
-	var users []models.User
-	if err := database.DB.Where("\"tenantId\" = ?", tenantID).Find(&users).Error; err != nil {
+	tenantID, err := tenantUUIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
+
+	users, err := appContainer.UserRepo.FindAll(c.Request.Context(), tenantID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
@@ -27,12 +29,16 @@ func ListUsers(c *gin.Context) {
 }
 
 func ShowUser(c *gin.Context) {
-	tenantID, _ := c.Get("tenantId")
-	id := c.Param("userId")
+	tenantID, err := tenantUUIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
+	id, _ := strconv.Atoi(c.Param("userId"))
 
-	var user models.User
-	if err := database.DB.Where("id = ? AND \"tenantId\" = ?", id, tenantID).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	user, err := appContainer.UserRepo.FindByID(c.Request.Context(), id, tenantID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found or access denied"})
 		return
 	}
 
@@ -40,38 +46,55 @@ func ShowUser(c *gin.Context) {
 }
 
 func CreateUser(c *gin.Context) {
-	tenantID, _ := c.Get("tenantId")
-	tid, _ := uuid.Parse(tenantID.(string))
+	tenantID, err := tenantUUIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 
 	// SaaS Limit Check
 	limitService := services.NewPlanLimitService()
-	if err := limitService.CheckLimit(tid, "users"); err != nil {
+	if err := limitService.CheckLimit(tenantID, "users"); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var input models.User
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user.TenantID = tid
-	if err := database.DB.Create(&user).Error; err != nil {
+	domainUser := &domain.User{
+		Name:         input.Name,
+		Email:        input.Email,
+		PasswordHash: input.PasswordHash,
+		TenantID:     tenantID,
+		Profile:      input.Profile,
+		WhatsappID:   input.WhatsappID,
+		GroupID:      input.GroupID,
+		Configs:      input.Configs,
+	}
+
+	if err := appContainer.UserRepo.Create(c.Request.Context(), domainUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, domainUser)
 }
 
 func UpdateUser(c *gin.Context) {
-	tenantID, _ := c.Get("tenantId")
-	id := c.Param("userId")
+	tenantID, err := tenantUUIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
+	id, _ := strconv.Atoi(c.Param("userId"))
 
-	var user models.User
-	if err := database.DB.Where("id = ? AND \"tenantId\" = ?", id, tenantID).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	user, err := appContainer.UserRepo.FindByID(c.Request.Context(), id, tenantID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found or access denied"})
 		return
 	}
 
@@ -81,73 +104,46 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// Handle password separately
+	updateMap := make(map[string]interface{})
+
+	// Password: hash before persisting
 	if pwd, ok := req["password"].(string); ok && pwd != "" {
-		if err := user.HashPassword(pwd); err != nil {
+		tmp := models.User{PasswordHash: user.PasswordHash}
+		if err := tmp.HashPassword(pwd); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 			return
 		}
-		database.DB.Model(&user).Update("passwordHash", user.PasswordHash)
+		updateMap["passwordHash"] = tmp.PasswordHash
 	}
 
-	// Handle Queues
-	if queueIds, ok := req["queueIds"].([]interface{}); ok {
-		var queues []models.Queue
-		for _, idVal := range queueIds {
-			idStr := fmt.Sprintf("%v", idVal)
-			qid, _ := strconv.Atoi(idStr)
-			var q models.Queue
-			if err := database.DB.First(&q, qid).Error; err == nil {
-				queues = append(queues, q)
-			}
-		}
-		database.DB.Model(&user).Association("Queues").Replace(queues)
+	// Scalar fields
+	if v, ok := req["name"].(string); ok {
+		updateMap["name"] = v
 	}
-
-	// Handle Permissions
-	if permIds, ok := req["permissions"].([]interface{}); ok {
-		var permissions []models.Permission
-		for _, idVal := range permIds {
-			idStr := fmt.Sprintf("%v", idVal)
-			pid, _ := strconv.Atoi(idStr)
-			var p models.Permission
-			if err := database.DB.First(&p, pid).Error; err == nil {
-				permissions = append(permissions, p)
-			}
-		}
-		database.DB.Model(&user).Association("Permissions").Replace(permissions)
+	if v, ok := req["email"].(string); ok {
+		updateMap["email"] = v
 	}
-
-	// Pre-process fields to avoid DB type errors
-	updateMap := make(map[string]interface{})
-	
-	// String fields
-	if v, ok := req["name"].(string); ok { updateMap["name"] = v }
-	if v, ok := req["email"].(string); ok { updateMap["email"] = v }
-	if v, ok := req["profile"].(string); ok { updateMap["profile"] = v }
-	
-	// Bigint / Pointer fields
+	if v, ok := req["profile"].(string); ok {
+		updateMap["profile"] = v
+	}
 	if v, ok := req["whatsappId"]; ok {
 		if v == "" || v == nil {
 			updateMap["whatsappId"] = nil
 		} else {
-			idStr := fmt.Sprintf("%v", v)
-			idInt, _ := strconv.ParseInt(idStr, 10, 64)
-			updateMap["whatsappId"] = idInt
+			s := formatInt(v)
+			updateMap["whatsappId"] = s
 		}
 	}
-
 	if v, ok := req["groupId"]; ok {
 		if v == "" || v == nil {
 			updateMap["groupId"] = nil
 		} else {
-			idStr := fmt.Sprintf("%v", v)
-			idInt, _ := strconv.ParseInt(idStr, 10, 64)
-			updateMap["groupId"] = idInt
+			s := formatInt(v)
+			updateMap["groupId"] = s
 		}
 	}
 
-	if err := database.DB.Model(&user).Updates(updateMap).Error; err != nil {
+	if err := appContainer.UserRepo.Update(c.Request.Context(), user, updateMap); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
@@ -156,13 +152,30 @@ func UpdateUser(c *gin.Context) {
 }
 
 func DeleteUser(c *gin.Context) {
-	tenantID, _ := c.Get("tenantId")
-	id := c.Param("userId")
+	tenantID, err := tenantUUIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
+	id, _ := strconv.Atoi(c.Param("userId"))
 
-	if err := database.DB.Where("id = ? AND \"tenantId\" = ?", id, tenantID).Delete(&models.User{}).Error; err != nil {
+	if err := appContainer.UserRepo.Delete(c.Request.Context(), id, tenantID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+}
+
+// formatInt converts an interface{} (float64 from JSON or string) to int64.
+func formatInt(v interface{}) int64 {
+	switch n := v.(type) {
+	case float64:
+		return int64(n)
+	case string:
+		i, _ := strconv.ParseInt(n, 10, 64)
+		return i
+	default:
+		return 0
+	}
 }

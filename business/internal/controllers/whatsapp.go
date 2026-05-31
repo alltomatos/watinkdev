@@ -2,19 +2,23 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
-	"github.com/alltomatos/watinkdev/business/internal/database"
+	"github.com/alltomatos/watinkdev/business/internal/domain"
 	"github.com/alltomatos/watinkdev/business/internal/models"
 	"github.com/alltomatos/watinkdev/business/internal/services"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 func ListWhatsapps(c *gin.Context) {
-	tenantID, _ := c.Get("tenantId")
+	tenantID, err := tenantUUIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 
-	var whatsapps []models.Whatsapp
-	if err := database.DB.Where("\"tenantId\" = ?", tenantID).Find(&whatsapps).Error; err != nil {
+	whatsapps, err := appContainer.ChannelSessionRepo.FindAll(c.Request.Context(), tenantID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch WhatsApp connections"})
 		return
 	}
@@ -23,12 +27,16 @@ func ListWhatsapps(c *gin.Context) {
 }
 
 func ShowWhatsapp(c *gin.Context) {
-	tenantID, _ := c.Get("tenantId")
-	id := c.Param("id")
+	tenantID, err := tenantUUIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
+	id, _ := strconv.Atoi(c.Param("id"))
 
-	var whatsapp models.Whatsapp
-	if err := database.DB.Where("id = ? AND \"tenantId\" = ?", id, tenantID).First(&whatsapp).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "WhatsApp connection not found"})
+	whatsapp, err := appContainer.ChannelSessionRepo.FindByID(c.Request.Context(), id, tenantID)
+	if err != nil || whatsapp == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "WhatsApp connection not found or access denied"})
 		return
 	}
 
@@ -49,7 +57,7 @@ func CreateWhatsapp(c *gin.Context) {
 		return
 	}
 
-	var input models.Whatsapp
+	var input domain.ChannelSession
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -61,12 +69,13 @@ func CreateWhatsapp(c *gin.Context) {
 	}
 
 	if input.IsDefault {
-		database.DB.Model(&models.Whatsapp{}).
-			Where("\"tenantId\" = ?", input.TenantID).
-			Update("isDefault", false)
+		if err := appContainer.ChannelSessionRepo.ResetDefaultFlag(c.Request.Context(), tenantID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset default connection"})
+			return
+		}
 	}
 
-	if err := database.DB.Create(&input).Error; err != nil {
+	if err := appContainer.ChannelSessionRepo.Create(c.Request.Context(), &input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -80,87 +89,103 @@ func UpdateWhatsapp(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	id := c.Param("id")
+	id, _ := strconv.Atoi(c.Param("id"))
 
-	var whatsapp models.Whatsapp
-	if err := database.DB.Where("id = ? AND \"tenantId\" = ?", id, tenantID).First(&whatsapp).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "WhatsApp connection not found"})
+	whatsapp, err := appContainer.ChannelSessionRepo.FindByID(c.Request.Context(), id, tenantID)
+	if err != nil || whatsapp == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "WhatsApp connection not found or access denied"})
 		return
 	}
 
-	var input models.Whatsapp
+	var input domain.ChannelSession
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if input.IsDefault {
-		database.DB.Model(&models.Whatsapp{}).
-			Where("\"tenantId\" = ?", tenantID).
-			Update("isDefault", false)
+		if err := appContainer.ChannelSessionRepo.ResetDefaultFlag(c.Request.Context(), tenantID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset default connection"})
+			return
+		}
 	}
 
-	input.ID = whatsapp.ID
-	input.TenantID = tenantID
+	fields := map[string]interface{}{
+		"session":         input.Session,
+		"qrcode":          input.Qrcode,
+		"status":          input.Status,
+		"battery":         input.Battery,
+		"plugged":         input.Plugged,
+		"name":            input.Name,
+		"isDefault":       input.IsDefault,
+		"retries":         input.Retries,
+		"greetingMessage": input.GreetingMessage,
+		"farewellMessage": input.FarewellMessage,
+		"syncHistory":     input.SyncHistory,
+		"syncPeriod":      input.SyncPeriod,
+		"number":          input.Number,
+		"profilePicUrl":   input.ProfilePicUrl,
+		"keepAlive":       input.KeepAlive,
+		"engineType":      input.EngineType,
+	}
 
-	if err := database.DB.Model(&whatsapp).Updates(input).Error; err != nil {
+	if err := appContainer.ChannelSessionRepo.Update(c.Request.Context(), whatsapp, fields); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := database.DB.Where("id = ? AND \"tenantId\" = ?", id, tenantID).First(&whatsapp).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "WhatsApp connection not found"})
+	updated, err := appContainer.ChannelSessionRepo.FindByID(c.Request.Context(), id, tenantID)
+	if err != nil || updated == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "WhatsApp connection not found or access denied"})
 		return
 	}
 
-	c.JSON(http.StatusOK, whatsapp)
+	c.JSON(http.StatusOK, updated)
 }
 
 func DeleteWhatsapp(c *gin.Context) {
-	tenantID, _ := c.Get("tenantId")
-	id := c.Param("id")
+	tenantID, err := tenantUUIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
+	id, _ := strconv.Atoi(c.Param("id"))
 
-	var whatsapp models.Whatsapp
-	if err := database.DB.Where("id = ? AND \"tenantId\" = ?", id, tenantID).First(&whatsapp).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "WhatsApp connection not found"})
+	whatsapp, err := appContainer.ChannelSessionRepo.FindByID(c.Request.Context(), id, tenantID)
+	if err != nil || whatsapp == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "WhatsApp connection not found or access denied"})
 		return
 	}
 
-	// 1. Stop session if active
-	_ = services.StopWhatsAppSession(whatsapp)
+	model := models.Whatsapp{
+		ID:              whatsapp.ID,
+		Session:         whatsapp.Session,
+		Qrcode:          whatsapp.Qrcode,
+		Status:          whatsapp.Status,
+		Battery:         whatsapp.Battery,
+		Plugged:         whatsapp.Plugged,
+		Name:            whatsapp.Name,
+		IsDefault:       whatsapp.IsDefault,
+		Retries:         whatsapp.Retries,
+		GreetingMessage: whatsapp.GreetingMessage,
+		FarewellMessage: whatsapp.FarewellMessage,
+		TenantID:        whatsapp.TenantID,
+		SyncHistory:     whatsapp.SyncHistory,
+		SyncPeriod:      whatsapp.SyncPeriod,
+		Number:          whatsapp.Number,
+		ProfilePicUrl:   whatsapp.ProfilePicUrl,
+		KeepAlive:       whatsapp.KeepAlive,
+		CreatedAt:       whatsapp.CreatedAt,
+		UpdatedAt:       whatsapp.UpdatedAt,
+		FirstConnection: whatsapp.FirstConnection,
+		EngineType:      whatsapp.EngineType,
+	}
+	if err := services.DeleteWhatsAppSession(model); err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to disconnect WhatsApp session before deletion"})
+		return
+	}
 
-	// 2. Clear related data using a transaction
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		// Set whatsappId to null in Tickets
-		if err := tx.Model(&models.Ticket{}).Where("\"whatsappId\" = ?", id).Update("whatsappId", nil).Error; err != nil {
-			return err
-		}
-
-		// Set whatsappId to null in Users
-		if err := tx.Model(&models.User{}).Where("\"whatsappId\" = ?", id).Update("whatsappId", nil).Error; err != nil {
-			return err
-		}
-
-		// Set whatsappId to null in Flows
-		if err := tx.Model(&models.Flow{}).Where("\"whatsappId\" = ?", id).Update("whatsappId", nil).Error; err != nil {
-			return err
-		}
-
-		// Delete associations in WhatsappQueues (many2many)
-		// We use the raw table name since there might not be a model for it
-		if err := tx.Exec("DELETE FROM \"WhatsappQueues\" WHERE \"whatsappId\" = ?", id).Error; err != nil {
-			return err
-		}
-
-		// Finally delete the WhatsApp connection
-		if err := tx.Where("id = ? AND \"tenantId\" = ?", id, tenantID).Delete(&models.Whatsapp{}).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
+	if err := appContainer.ChannelSessionRepo.DeleteWithRelations(c.Request.Context(), id, tenantID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to delete connection: " + err.Error()})
 		return
 	}

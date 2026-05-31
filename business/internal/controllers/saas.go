@@ -19,7 +19,7 @@ func ListTenants(c *gin.Context) {
 
 func GetTenantPlan(c *gin.Context) {
 	tenantID := c.Param("tenantId")
-	
+
 	var tenant models.Tenant
 	if err := database.DB.Where("id = ?", tenantID).First(&tenant).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})

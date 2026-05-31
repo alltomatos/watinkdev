@@ -20,14 +20,18 @@ Frontend (React/Vite) ←REST/Socket→ Backend Go (Gin/GORM) ←SQL→ PostgreS
 |---|---|---|---|
 | Backend Go | `business/` | Go 1.24 / Gin / GORM | 8082 |
 | Engine Go | `engine-go/` | Go 1.24 / whatsmeow | — |
-| Frontend | `frontend/` | React 18 / Vite / MUI v5 | 3000 (vite) |
+| Frontend | `frontend/` | React 17 / Vite / MUI v4 | 3000 (vite) |
 | Plugin Manager | `plugin-manager/` | Go 1.24 / gorilla-mux | 8081 |
 | Marketplace Hub | `marketplace-hub/` | Node/Express | 8090 |
 | Plugin SDK | `packages/plugin-sdk/` | TypeScript | — |
 | Backend Node (legacy) | `legacy/backend/` | Node/Express/Sequelize | 8080 |
 | Engine Node (legacy) | `legacy/engine-standard/` | Node/whaileys | — |
 
-### Communication Flow
+
+### Environment Setup
+
+- Use `docker-compose.dev.yml` for development (bind mounts, hot-reload).
+- Run with: `npm run linux:docker:dev:build`
 
 - **Backend ↔ Frontend**: REST API + Socket.io (real-time events: `appMessage`, `ticket:update`)
 - **Backend ↔ Engine**: RabbitMQ exchanges — `wbot.commands` (outbound), `wbot.events` (inbound)
@@ -99,7 +103,20 @@ All credentials read from env vars — set `DB_PASS`, `JWT_SECRET`, `JWT_REFRESH
 ### Docker
 ```bash
 docker-compose -f docker-compose.business.yml up   # Go backend + Postgres + Redis + RabbitMQ
+docker compose -f docker-compose.dev.yml up         # full local dev stack
+docker compose -f docker-compose.dev.yml ps         # inspect running dev services
+docker compose -f docker-compose.dev.yml logs --tail=100 watink-business
+docker compose -f docker-compose.dev.yml logs --tail=100 watink-frontend
 ```
+
+### Development Diagnostics
+
+- `docker-compose.dev.yml` is at the repository root. If logs fail with `no such file or directory`, verify the current working directory is the repo root or pass the absolute compose file path.
+- Backend hot reload runs with Air inside `watink-business`; a Go syntax/build error will stop reload until the offending file compiles again.
+- For backend failures, check `watink-business` logs first, then run `cd business && go build ./...` to get deterministic compiler errors.
+- For engine or AMQP failures, check `watink-engine` and `watink-rabbitmq` logs together; RabbitMQ startup race conditions can produce initial transient connection failures.
+- Frontend warnings from Material-UI v4 transitions under React `StrictMode` may include `findDOMNode is deprecated`. This is a library-level dev warning from MUI v4/React 17 compatibility, not necessarily an application failure. Prefer migrating affected components to MUI v5+ for a full fix; do not mask real runtime errors.
+- Vite duplicate-key warnings in translation files should be fixed in `frontend/src/translate/languages/*.js` by removing or merging duplicated object keys.
 
 ### Smoke Test
 ```bash
@@ -128,3 +145,10 @@ SMOKE_BASE_URL=http://localhost:3000 SMOKE_EMAIL=user@example.com SMOKE_PASS=sec
 - **Engine session persistence**: `.sessions_auth/` must be a Docker volume — losing it disconnects all WhatsApp sessions
 - **Redis transient store**: messages cached with TTL 24h at key `wbot:msg:{jid}:{id}` for retry after engine restart
 - **Plugin activation**: no code download — built-in plugins are unlocked by flipping `PluginInstallations.active` in DB after Manager license check
+
+## Core Engineering & Testing Guidelines
+
+- **Segurança (Multitenancy)**: Em qualquer novo controller do Gin no diretório `business/`, é estritamente obrigatório utilizar o utilitário `tenantUUIDFromContext(c)` para extrair o ID do cliente. Nunca utilize `c.Get("tenantId")` com tipagem genérica ou bruta.
+- **Injeção de Dependência (DI)**: Controllers e Services não devem instanciar dependências globais internamente. Utilize structs receptoras (ex: `type MessageController struct { rabbit domain.RabbitMQServiceInterface }`) e injete interfaces através de construtores. As implementações concretas devem ser mapeadas no arquivo de rotas.
+- **Padrão de Testes (Sem Globais)**: Ao escrever testes de integração no Go (ex: com `httptest`), é proibido o uso de variáveis globais para criar Mocks. Os Mocks devem ser encapsulados em structs locais instanciadas dentro de cada função `Test...` para garantir que o código seja thread-safe e suporte paralelismo.
+- **Prevenção de Perda de Dados**: Ao modificar arquivos grandes ou de domínio (`domain.go`), utilize ferramentas de Edit de forma pontual. O uso de Write sobrescrevendo o arquivo inteiro com resumos ou omissões é estritamente proibido.

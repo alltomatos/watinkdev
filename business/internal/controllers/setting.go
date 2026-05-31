@@ -23,10 +23,16 @@ func ListSettings(c *gin.Context) {
 }
 
 func GetPublicSettings(c *gin.Context) {
+	var tenant models.Tenant
+	if err := database.DB.Order("id ASC").First(&tenant).Error; err != nil {
+		c.JSON(http.StatusOK, []models.Setting{})
+		return
+	}
+
 	var settings []models.Setting
 	publicKeys := []string{"systemLogo", "login_backgroundImage", "login_layout", "systemFavicon"}
 
-	if err := database.DB.Where("key IN ?", publicKeys).Find(&settings).Error; err != nil {
+	if err := database.DB.Where("key IN ? AND \"tenantId\" = ?", publicKeys, tenant.ID).Find(&settings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public settings"})
 		return
 	}

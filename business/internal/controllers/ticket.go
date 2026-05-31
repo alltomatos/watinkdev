@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/alltomatos/watinkdev/business/internal/database"
+	"github.com/alltomatos/watinkdev/business/internal/application/usecases"
 	"github.com/alltomatos/watinkdev/business/internal/models"
 	"github.com/alltomatos/watinkdev/business/internal/services"
 	"github.com/gin-gonic/gin"
@@ -29,7 +29,7 @@ func ListTickets(c *gin.Context) {
 	searchParam := c.Query("searchParam")
 	if searchParam != "" {
 		query = query.Joins("JOIN \"Contacts\" ON \"Contacts\".id = \"Tickets\".\"contactId\"").
-			Where("(\"Contacts\".name ILIKE ? OR \"Contacts\".number ILIKE ? OR \"Tickets\".\"lastMessage\" ILIKE ?)", 
+			Where("(\"Contacts\".name ILIKE ? OR \"Contacts\".number ILIKE ? OR \"Tickets\".\"lastMessage\" ILIKE ?)",
 				"%"+searchParam+"%", "%"+searchParam+"%", "%"+searchParam+"%")
 	}
 
@@ -115,47 +115,32 @@ func UpdateTicket(c *gin.Context) {
 		return
 	}
 
-	oldQueueID := ticket.QueueID
-	oldUserID := ticket.UserID
-	oldStatus := ticket.Status
-	
-	if input.Status != "" {
-		ticket.Status = input.Status
+	// Convert domain ticket to input format for use case
+	updateInput := usecases.UpdateTicketInput{
+		TicketID: ticket.ID,
+		TenantID: tenantID,
+		Status:   input.Status,
+		UserID:   input.UserID,
+		QueueID:  input.QueueID,
 	}
-	ticket.UserID = input.UserID
-	ticket.QueueID = input.QueueID
 
-	if err := database.DB.Save(&ticket).Error; err != nil {
+	// Get authenticated user for audit
+	if userID, exists := c.Get("userId"); exists {
+		userIDInt := int(userID.(float64))
+		updateInput.PerformedBy = &userIDInt
+	}
+
+	// Delegate to Use Case
+	updatedTicket, err := appContainer.UpdateTicket.Execute(c.Request.Context(), updateInput)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update ticket"})
 		return
 	}
 
-	// Logging
-	ctxUserID, _ := c.Get("userId")
-	userIDInt := int(ctxUserID.(float64))
-	
-	if input.Status != "" && input.Status != oldStatus {
-		services.CreateTicketLog(ticket.ID, &userIDInt, "status", map[string]interface{}{"old": oldStatus, "new": input.Status})
-	}
-	if input.QueueID != nil && (oldQueueID == nil || *oldQueueID != *input.QueueID) {
-		services.CreateTicketLog(ticket.ID, &userIDInt, "transfer", map[string]interface{}{"oldQueueId": oldQueueID, "newQueueId": input.QueueID})
-	}
-	if input.UserID != nil && (oldUserID == nil || *oldUserID != *input.UserID) {
-		services.CreateTicketLog(ticket.ID, &userIDInt, "assign", map[string]interface{}{"oldUserId": oldUserID, "newUserId": input.UserID})
-	}
+	// Notificar via Socket (infraestratura de comunicação, não de negócio)
+	services.EmitToNamespace("/", "ticket", gin.H{"action": "update", "ticket": updatedTicket})
 
-	// Se a fila mudou ou o ticket foi movido para uma fila (estando sem fila)
-	if input.QueueID != nil && (oldQueueID == nil || *oldQueueID != *input.QueueID) {
-		go func(tID int, qID int) {
-			distService := services.NewDistributionService()
-			distService.DistributeTicket(tID, qID, tenantID)
-		}(ticket.ID, *input.QueueID)
-	}
-
-	// Notificar via Socket
-	services.EmitToNamespace("/", "ticket", gin.H{"action": "update", "ticket": ticket})
-
-	c.JSON(http.StatusOK, ticket)
+	c.JSON(http.StatusOK, updatedTicket)
 }
 
 func ListTicketLogs(c *gin.Context) {
